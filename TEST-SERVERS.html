@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تست سرورهای Bil Flow</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 28px;
+        }
+        .server-test {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border: 2px solid #e0e0e0;
+        }
+        .server-name {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .status {
+            padding: 8px 16px;
+            border-radius: 6px;
+            display: inline-block;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .status.checking {
+            background: #ffd700;
+            color: #856404;
+        }
+        .status.online {
+            background: #28a745;
+            color: white;
+        }
+        .status.offline {
+            background: #dc3545;
+            color: white;
+        }
+        .url {
+            font-family: 'Courier New', monospace;
+            background: #e9ecef;
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 10px;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #5568d3;
+        }
+        .instructions {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .instructions h3 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+        .instructions ol {
+            margin-right: 20px;
+            color: #856404;
+        }
+        .instructions li {
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 تست سرورهای Bil Flow</h1>
+        
+        <div class="server-test">
+            <div class="server-name">🎨 فرانت‌اند (Vite)</div>
+            <div class="url">http://localhost:5173/</div>
+            <div class="status checking" id="frontend-status">در حال بررسی...</div>
+            <br>
+            <button onclick="window.open('http://localhost:5173/', '_blank')">باز کردن فرانت‌اند</button>
+        </div>
+
+        <div class="server-test">
+            <div class="server-name">⚙️ بک‌اند (Express)</div>
+            <div class="url">http://localhost:8080/health</div>
+            <div class="status checking" id="backend-status">در حال بررسی...</div>
+            <br>
+            <button onclick="window.open('http://localhost:8080/health', '_blank')">تست Health Check</button>
+        </div>
+
+        <div class="instructions" id="instructions" style="display:none;">
+            <h3>⚠️ سرورها روشن نیستند!</h3>
+            <ol>
+                <li>به پوشه پروژه بروید: <code>C:\Users\rose\Desktop\site</code></li>
+                <li>روی فایل <strong>QUICK-START.bat</strong> دوبار کلیک کنید</li>
+                <li>در پوشه <code>server\</code> روی <strong>QUICK-START-BACKEND.bat</strong> دوبار کلیک کنید</li>
+                <li>این صفحه را Refresh کنید (F5)</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        async function testServer(url, statusElementId) {
+            const statusEl = document.getElementById(statusElementId);
+            try {
+                const response = await fetch(url, { 
+                    method: 'GET',
+                    mode: 'cors',
+                    cache: 'no-cache'
+                });
+                if (response.ok) {
+                    statusEl.textContent = '✅ آنلاین';
+                    statusEl.className = 'status online';
+                    return true;
+                } else {
+                    throw new Error('Server returned error');
+                }
+            } catch (error) {
+                statusEl.textContent = '❌ آفلاین';
+                statusEl.className = 'status offline';
+                return false;
+            }
+        }
+
+        async function runTests() {
+            const frontendOnline = await testServer('http://localhost:5173/', 'frontend-status');
+            const backendOnline = await testServer('http://localhost:8080/health', 'backend-status');
+            
+            if (!frontendOnline || !backendOnline) {
+                document.getElementById('instructions').style.display = 'block';
+            }
+        }
+
+        // Run tests on load
+        runTests();
+
+        // Auto-refresh every 5 seconds
+        setInterval(runTests, 5000);
+    </script>
+</body>
+</html>

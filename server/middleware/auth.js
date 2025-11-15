@@ -82,11 +82,22 @@ const authenticateAdmin = async (req, res, next) => {
             });
         }
 
-        // Get admin from database
-        const admin = await dbHelpers.get(
-            'SELECT id, username, role FROM admin_users WHERE id = ? AND is_active = 1',
-            [decoded.adminId]
-        );
+        // Get admin from database with role info
+        const admin = await dbHelpers.get(`
+            SELECT 
+                a.id, 
+                a.username, 
+                a.name,
+                a.role, 
+                a.is_super_admin,
+                a.role_id,
+                a.permissions as custom_permissions,
+                r.name as role_name,
+                r.permissions as role_permissions
+            FROM admin_users a
+            LEFT JOIN admin_roles r ON a.role_id = r.id
+            WHERE a.id = ? AND a.is_active = 1
+        `, [decoded.adminId]);
 
         if (!admin) {
             return res.status(401).json({
@@ -94,6 +105,30 @@ const authenticateAdmin = async (req, res, next) => {
                 message: 'Admin not found or inactive.'
             });
         }
+
+        // Parse permissions - prioritize custom permissions over role permissions
+        let permissions = [];
+        if (admin.custom_permissions) {
+            try {
+                permissions = JSON.parse(admin.custom_permissions);
+            } catch (e) {
+                permissions = [];
+            }
+        } else if (admin.role_permissions) {
+            try {
+                permissions = JSON.parse(admin.role_permissions);
+            } catch (e) {
+                permissions = [];
+            }
+        }
+        
+        admin.permissions = permissions;
+
+        // Update last login
+        await dbHelpers.run(
+            'UPDATE admin_users SET last_login = CURRENT_TIMESTAMP WHERE id = ?',
+            [admin.id]
+        );
 
         req.admin = admin;
         next();
@@ -103,6 +138,73 @@ const authenticateAdmin = async (req, res, next) => {
             success: false,
             message: 'Server error during admin authentication.'
         });
+    }
+};
+
+// Check if admin has specific permission
+const checkPermission = (permission) => {
+    return (req, res, next) => {
+        if (!req.admin) {
+            return res.status(401).json({
+                success: false,
+                message: 'Authentication required.'
+            });
+        }
+
+        // Super admin has all permissions
+        if (req.admin.is_super_admin) {
+            return next();
+        }
+
+        // Development-friendly fallback: if legacy 'admin' user without assigned role/permissions
+        // allow access to avoid blocking the panel during setup
+        const assignedPermissions = Array.isArray(req.admin.permissions) ? req.admin.permissions : [];
+        if ((req.admin.role === 'admin') && (!req.admin.role_id || assignedPermissions.length === 0)) {
+            return next();
+        }
+
+        // Check if admin has the required permission
+        if (assignedPermissions.includes('all') || assignedPermissions.includes(permission)) {
+            return next();
+        }
+
+        return res.status(403).json({
+            success: false,
+            message: 'You do not have permission to perform this action.'
+        });
+    };
+};
+
+// Require super admin
+const requireSuperAdmin = (req, res, next) => {
+    if (!req.admin) {
+        return res.status(401).json({
+            success: false,
+            message: 'Authentication required.'
+        });
+    }
+
+    if (!req.admin.is_super_admin) {
+        return res.status(403).json({
+            success: false,
+            message: 'Super admin access required.'
+        });
+    }
+
+    next();
+};
+
+// Log admin action
+const logAdminAction = async (adminId, action, targetType = null, targetId = null, details = null, req = null) => {
+    try {
+        const ipAddress = req ? (req.ip || req.connection.remoteAddress) : null;
+        
+        await dbHelpers.run(`
+            INSERT INTO audit_logs (admin_id, action, target_type, target_id, details, ip_address)
+            VALUES (?, ?, ?, ?, ?, ?)
+        `, [adminId, action, targetType, targetId, details ? JSON.stringify(details) : null, ipAddress]);
+    } catch (error) {
+        console.error('Error logging admin action:', error);
     }
 };
 
@@ -136,5 +238,8 @@ module.exports = {
     verifyToken,
     authenticateUser,
     authenticateAdmin,
+    checkPermission,
+    requireSuperAdmin,
+    logAdminAction,
     optionalAuth
 };

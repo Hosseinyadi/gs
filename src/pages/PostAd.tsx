@@ -104,17 +104,21 @@ const PostAd = () => {
         images: form.images,
       };
 
+      console.log('Creating listing:', listingData);
       const response = await apiService.createListing(listingData);
+      console.log('Create listing response:', response);
 
       if (response.success) {
-        toast.success('آگهی با موفقیت ثبت شد');
-        navigate('/seller');
+        toast.success('آگهی با موفقیت ثبت شد و در انتظار تایید مدیر است');
+        // Redirect to user dashboard
+        navigate('/dashboard');
       } else {
         toast.error(response.message || 'خطا در ثبت آگهی');
+        console.error('Create listing failed:', response);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating listing:', error);
-      toast.error('خطا در ثبت آگهی');
+      toast.error(error?.message || 'خطا در ثبت آگهی');
     } finally {
       setLoading(false);
     }
@@ -209,35 +213,36 @@ const PostAd = () => {
                 {step === 1 && (
                   <div className="space-y-4">
                     <div>
-                      <label className="text-sm font-medium">عنوان آگهی *</label>
+                      <label className="text-sm font-medium block mb-2">عنوان آگهی *</label>
                       <Input
                         value={form.title}
                         onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))}
                         placeholder="عنوان جذاب برای آگهی خود بنویسید"
+                        className="w-full"
                         required
                       />
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="text-sm font-medium">نوع آگهی *</label>
+                        <label className="text-sm font-medium block mb-2">نوع آگهی *</label>
                         <Select value={form.type} onValueChange={(value) => setForm(prev => ({ ...prev, type: value as 'rent' | 'sale' }))}>
-                          <SelectTrigger>
-                            <SelectValue />
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="انتخاب نوع" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent position="popper" className="max-h-[300px] overflow-y-auto">
                             <SelectItem value="rent">اجاره</SelectItem>
                             <SelectItem value="sale">فروش</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                       <div>
-                        <label className="text-sm font-medium">دسته‌بندی *</label>
+                        <label className="text-sm font-medium block mb-2">دسته‌بندی *</label>
                         <Select value={form.category_id} onValueChange={(value) => setForm(prev => ({ ...prev, category_id: value }))}>
-                          <SelectTrigger>
+                          <SelectTrigger className="w-full">
                             <SelectValue placeholder="انتخاب دسته‌بندی" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent position="popper" className="max-h-[300px] overflow-y-auto z-50">
                             {categories.map((category) => (
                               <SelectItem key={category.id} value={category.id.toString()}>
                                 {category.name}
@@ -253,38 +258,41 @@ const PostAd = () => {
                 {step === 2 && (
                   <div className="space-y-4">
                     <div>
-                      <label className="text-sm font-medium">توضیحات *</label>
+                      <label className="text-sm font-medium block mb-2">توضیحات *</label>
                       <Textarea
                         value={form.description}
                         onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
                         placeholder="توضیحات کامل و دقیق از آگهی خود بنویسید"
-                        rows={4}
+                        className="w-full min-h-[120px]"
+                        rows={5}
                         required
                       />
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="text-sm font-medium">قیمت *</label>
+                        <label className="text-sm font-medium block mb-2">قیمت (تومان) *</label>
                         <Input
                           type="number"
                           value={form.price}
                           onChange={(e) => setForm(prev => ({ ...prev, price: e.target.value }))}
-                          placeholder="قیمت به تومان"
+                          placeholder="مثال: 5000000"
+                          className="w-full"
                           required
                         />
                         {form.price && (
-                          <p className="text-sm text-muted-foreground mt-1">
+                          <p className="text-sm text-green-600 mt-1 font-medium">
                             {formatPrice(form.price)}
                           </p>
                         )}
                       </div>
                       <div>
-                        <label className="text-sm font-medium">موقعیت مکانی *</label>
+                        <label className="text-sm font-medium block mb-2">موقعیت مکانی *</label>
                         <Input
                           value={form.location}
                           onChange={(e) => setForm(prev => ({ ...prev, location: e.target.value }))}
-                          placeholder="شهر، استان"
+                          placeholder="مثال: تهران، کرج"
+                          className="w-full"
                           required
                         />
                       </div>
@@ -292,38 +300,44 @@ const PostAd = () => {
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <label className="text-sm font-medium">برند</label>
+                        <label className="text-sm font-medium block mb-2">برند</label>
                         <Input
                           value={form.brand}
                           onChange={(e) => setForm(prev => ({ ...prev, brand: e.target.value }))}
-                          placeholder="برند"
+                          placeholder="مثال: کوماتسو"
+                          className="w-full"
                         />
                       </div>
                       <div>
-                        <label className="text-sm font-medium">مدل</label>
+                        <label className="text-sm font-medium block mb-2">مدل</label>
                         <Input
                           value={form.model}
                           onChange={(e) => setForm(prev => ({ ...prev, model: e.target.value }))}
-                          placeholder="مدل"
+                          placeholder="مثال: PC200"
+                          className="w-full"
                         />
                       </div>
                       <div>
-                        <label className="text-sm font-medium">سال ساخت</label>
+                        <label className="text-sm font-medium block mb-2">سال ساخت</label>
                         <Input
                           type="number"
                           value={form.year}
                           onChange={(e) => setForm(prev => ({ ...prev, year: e.target.value }))}
-                          placeholder="سال"
+                          placeholder="مثال: 2020"
+                          className="w-full"
+                          min="1900"
+                          max="2030"
                         />
                       </div>
                     </div>
 
                     <div>
-                      <label className="text-sm font-medium">وضعیت</label>
+                      <label className="text-sm font-medium block mb-2">وضعیت دستگاه</label>
                       <Input
                         value={form.condition}
                         onChange={(e) => setForm(prev => ({ ...prev, condition: e.target.value }))}
-                        placeholder="وضعیت دستگاه (مثال: عالی، خوب، متوسط)"
+                        placeholder="مثال: عالی، نو، کارکرده"
+                        className="w-full"
                       />
                     </div>
                   </div>
@@ -357,26 +371,31 @@ const PostAd = () => {
                   </div>
                 )}
 
-                <div className="flex gap-2 pt-4">
+                <div className="flex gap-3 pt-6 border-t">
                   {step > 1 && (
-                    <Button type="button" variant="outline" onClick={prevStep}>
+                    <Button type="button" variant="outline" onClick={prevStep} className="px-6">
                       <ArrowLeft className="w-4 h-4 ml-2" />
-                      قبلی
+                      مرحله قبل
                     </Button>
                   )}
                   
                   {step < 3 ? (
-                    <Button type="button" onClick={nextStep} className="flex-1">
-                      بعدی
+                    <Button type="button" onClick={nextStep} className="flex-1 h-11">
+                      مرحله بعد
                     </Button>
                   ) : (
-                    <Button type="submit" disabled={loading} className="flex-1">
+                    <Button type="submit" disabled={loading} className="flex-1 h-11 bg-green-600 hover:bg-green-700">
                       {loading ? (
-                        <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+                        <>
+                          <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+                          در حال ثبت...
+                        </>
                       ) : (
-                        <Save className="w-4 h-4 ml-2" />
+                        <>
+                          <Save className="w-4 h-4 ml-2" />
+                          ثبت نهایی آگهی
+                        </>
                       )}
-                      ثبت آگهی
                     </Button>
                   )}
                 </div>

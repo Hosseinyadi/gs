@@ -1,24 +1,90 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fa" dir="rtl">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>پارس اکسکاواتور - اجاره و فروش ماشین‌آلات سنگین</title>
-    <meta name="description" content="پلتفرم جامع اجاره و فروش ماشین‌آلات سنگین، بیل مکانیکی، لودر، بولدوزر و قطعات یدکی در سراسر ایران" />
-    <meta name="author" content="پارس اکسکاواتور" />
+    <title>گاراژ سنگین - خرید، فروش و اجاره ماشین‌آلات سنگین</title>
+    <meta name="description" content="گاراژ سنگین، بزرگترین مرکز خرید، فروش و اجاره ماشین‌آلات سنگین ایران. بیل مکانیکی، لودر، بولدوزر، کمپرسی، کرین و قطعات یدکی با بهترین قیمت" />
+    <meta name="keywords" content="گاراژ سنگین، ماشین آلات سنگین، بیل مکانیکی، لودر، بولدوزر، کرین، اجاره ماشین آلات، فروش ماشین آلات، قطعات یدکی، garage sangin, heavy machinery" />
+    <meta name="author" content="گاراژ سنگین" />
+    <meta name="robots" content="index, follow" />
+    <meta name="language" content="Persian" />
+    <meta name="geo.region" content="IR" />
+    <meta name="geo.country" content="Iran" />
 
-    <meta property="og:title" content="پارس اکسکاواتور - اجاره و فروش ماشین‌آلات سنگین" />
-    <meta property="og:description" content="پلتفرم جامع اجاره و فروش ماشین‌آلات سنگین، بیل مکانیکی، لودر، بولدوزر و قطعات یدکی در سراسر ایران" />
+    <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="/placeholder.svg" />
+    <meta property="og:url" content="https://garagesangin.com/" />
+    <meta property="og:title" content="گاراژ سنگین - خرید، فروش و اجاره ماشین‌آلات سنگین" />
+    <meta property="og:description" content="بزرگترین مرکز خرید، فروش و اجاره ماشین‌آلات سنگین ایران. بیل مکانیکی، لودر، بولدوزر، کرین و قطعات یدکی با بهترین قیمت" />
+    <meta property="og:image" content="/garage-sangin-logo.jpg" />
+    <meta property="og:site_name" content="گاراژ سنگین" />
+    <meta property="og:locale" content="fa_IR" />
 
+    <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@pars_excavator" />
-    <meta name="twitter:image" content="/placeholder.svg" />
+    <meta name="twitter:url" content="https://garagesangin.com/" />
+    <meta name="twitter:title" content="گاراژ سنگین - خرید، فروش و اجاره ماشین‌آلات سنگین" />
+    <meta name="twitter:description" content="بزرگترین مرکز خرید، فروش و اجاره ماشین‌آلات سنگین ایران" />
+    <meta name="twitter:image" content="/garage-sangin-logo.jpg" />
+    <meta name="twitter:site" content="@garage_sangin" />
+
+    <!-- Additional SEO -->
+    <link rel="canonical" href="https://garagesangin.com/" />
+    <meta name="theme-color" content="#2563eb" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.json" />
+    
+    <!-- Preconnect to external domains -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    
+    <!-- Schema.org structured data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "گاراژ سنگین",
+      "alternateName": "Garage Sangin",
+      "url": "https://garagesangin.com",
+      "logo": "https://garagesangin.com/garage-sangin-logo.jpg",
+      "description": "بزرگترین مرکز خرید، فروش و اجاره ماشین‌آلات سنگین ایران",
+      "address": {
+        "@type": "PostalAddress",
+        "addressCountry": "IR",
+        "addressLocality": "تهران"
+      },
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "contactType": "customer service",
+        "availableLanguage": "Persian"
+      },
+      "sameAs": [
+        "https://instagram.com/garage_sangin",
+        "https://telegram.me/garage_sangin"
+      ]
+    }
+    </script>
   </head>
 
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- Service Worker Registration for Performance -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then((registration) => {
+              console.log('SW registered: ', registration);
+            })
+            .catch((registrationError) => {
+              console.log('SW registration failed: ', registrationError);
+            });
+        });
+      }
+    </script>
   </body>
 </html>

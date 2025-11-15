@@ -91,7 +91,18 @@ const RentAds = () => {
 
       const response = await apiService.getListings(params);
       if (response.success && response.data) {
-        setListings(response.data.listings);
+        // Parse images for each listing
+        const parsedListings = response.data.listings.map(listing => {
+          if (typeof listing.images === 'string') {
+            try {
+              listing.images = JSON.parse(listing.images);
+            } catch (e) {
+              listing.images = [];
+            }
+          }
+          return listing;
+        });
+        setListings(parsedListings);
         setTotalPages(response.data.pagination.total_pages);
       }
     } catch (error) {

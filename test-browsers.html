@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تست سازگاری مرورگرها - گاراژ سنگین</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .info-box {
+            background: #f0f4ff;
+            border-right: 4px solid #667eea;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+        }
+        
+        .info-box h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .info-item:last-child {
+            border-bottom: none;
+        }
+        
+        .label {
+            color: #666;
+            font-weight: 500;
+        }
+        
+        .value {
+            color: #333;
+            font-weight: bold;
+        }
+        
+        .test-section {
+            margin-top: 30px;
+        }
+        
+        .test-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 10px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .test-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .test-button:active {
+            transform: translateY(0);
+        }
+        
+        .test-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .result-box {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+        }
+        
+        .result-box.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            display: block;
+        }
+        
+        .result-box.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            display: block;
+        }
+        
+        .result-box.info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+            display: block;
+        }
+        
+        .log-box {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+        
+        .log-entry {
+            margin-bottom: 5px;
+        }
+        
+        .log-entry.success {
+            color: #4ec9b0;
+        }
+        
+        .log-entry.error {
+            color: #f48771;
+        }
+        
+        .log-entry.info {
+            color: #569cd6;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .status-badge.supported {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-badge.not-supported {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌐 تست سازگاری مرورگرها</h1>
+        <p class="subtitle">گاراژ سنگین - سیستم OTP</p>
+        
+        <div class="info-box">
+            <h3>اطلاعات مرورگر شما</h3>
+            <div class="info-item">
+                <span class="label">مرورگر:</span>
+                <span class="value" id="browser-name">در حال بررسی...</span>
+            </div>
+            <div class="info-item">
+                <span class="label">نسخه:</span>
+                <span class="value" id="browser-version">در حال بررسی...</span>
+            </div>
+            <div class="info-item">
+                <span class="label">سیستم عامل:</span>
+                <span class="value" id="os-name">در حال بررسی...</span>
+            </div>
+            <div class="info-item">
+                <span class="label">Fetch API:</span>
+                <span class="value" id="fetch-support">در حال بررسی...</span>
+            </div>
+            <div class="info-item">
+                <span class="label">AbortController:</span>
+                <span class="value" id="abort-support">در حال بررسی...</span>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <button class="test-button" onclick="testHealthCheck()">
+                🏥 تست اتصال به سرور
+            </button>
+            <button class="test-button" onclick="testOTPSend()">
+                📱 تست ارسال OTP
+            </button>
+            <button class="test-button" onclick="testCORS()">
+                🔒 تست CORS
+            </button>
+            <button class="test-button" onclick="clearLogs()">
+                🗑️ پاک کردن لاگ‌ها
+            </button>
+        </div>
+        
+        <div id="result" class="result-box"></div>
+        
+        <div class="log-box" id="log-box">
+            <div class="log-entry info">📋 آماده برای تست...</div>
+        </div>
+    </div>
+    
+    <script>
+        const API_URL = 'http://localhost:8080/api';
+        
+        // تشخیص مرورگر
+        function detectBrowser() {
+            const ua = navigator.userAgent;
+            let browserName = 'Unknown';
+            let browserVersion = 'Unknown';
+            
+            if (ua.indexOf('Edg') > -1) {
+                browserName = 'Microsoft Edge';
+                browserVersion = ua.match(/Edg\/(\d+)/)?.[1] || 'Unknown';
+            } else if (ua.indexOf('Chrome') > -1) {
+                browserName = 'Google Chrome';
+                browserVersion = ua.match(/Chrome\/(\d+)/)?.[1] || 'Unknown';
+            } else if (ua.indexOf('Firefox') > -1) {
+                browserName = 'Mozilla Firefox';
+                browserVersion = ua.match(/Firefox\/(\d+)/)?.[1] || 'Unknown';
+            } else if (ua.indexOf('Safari') > -1) {
+                browserName = 'Apple Safari';
+                browserVersion = ua.match(/Version\/(\d+)/)?.[1] || 'Unknown';
+            } else if (ua.indexOf('Opera') > -1 || ua.indexOf('OPR') > -1) {
+                browserName = 'Opera';
+                browserVersion = ua.match(/OPR\/(\d+)/)?.[1] || 'Unknown';
+            }
+            
+            return { name: browserName, version: browserVersion };
+        }
+        
+        // تشخیص سیستم عامل
+        function detectOS() {
+            const ua = navigator.userAgent;
+            if (ua.indexOf('Win') > -1) return 'Windows';
+            if (ua.indexOf('Mac') > -1) return 'macOS';
+            if (ua.indexOf('Linux') > -1) return 'Linux';
+            if (ua.indexOf('Android') > -1) return 'Android';
+            if (ua.indexOf('iOS') > -1) return 'iOS';
+            return 'Unknown';
+        }
+        
+        // بررسی پشتیبانی از ویژگی‌ها
+        function checkFeatureSupport() {
+            const fetchSupported = typeof fetch !== 'undefined';
+            const abortSupported = typeof AbortController !== 'undefined';
+            
+            return {
+                fetch: fetchSupported,
+                abort: abortSupported
+            };
+        }
+        
+        // نمایش اطلاعات مرورگر
+        function displayBrowserInfo() {
+            const browser = detectBrowser();
+            const os = detectOS();
+            const features = checkFeatureSupport();
+            
+            document.getElementById('browser-name').textContent = browser.name;
+            document.getElementById('browser-version').textContent = browser.version;
+            document.getElementById('os-name').textContent = os;
+            
+            const fetchBadge = features.fetch 
+                ? '<span class="status-badge supported">✓ پشتیبانی می‌شود</span>'
+                : '<span class="status-badge not-supported">✗ پشتیبانی نمی‌شود</span>';
+            document.getElementById('fetch-support').innerHTML = fetchBadge;
+            
+            const abortBadge = features.abort
+                ? '<span class="status-badge supported">✓ پشتیبانی می‌شود</span>'
+                : '<span class="status-badge not-supported">✗ پشتیبانی نمی‌شود</span>';
+            document.getElementById('abort-support').innerHTML = abortBadge;
+        }
+        
+        // اضافه کردن لاگ
+        function addLog(message, type = 'info') {
+            const logBox = document.getElementById('log-box');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            const timestamp = new Date().toLocaleTimeString('fa-IR');
+            entry.textContent = `[${timestamp}] ${message}`;
+            logBox.appendChild(entry);
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+        
+        // نمایش نتیجه
+        function showResult(message, type = 'info') {
+            const resultBox = document.getElementById('result');
+            resultBox.className = `result-box ${type}`;
+            resultBox.textContent = message;
+        }
+        
+        // پاک کردن لاگ‌ها
+        function clearLogs() {
+            document.getElementById('log-box').innerHTML = '<div class="log-entry info">📋 لاگ‌ها پاک شدند</div>';
+            document.getElementById('result').style.display = 'none';
+        }
+        
+        // تست اتصال به سرور
+        async function testHealthCheck() {
+            addLog('🏥 شروع تست اتصال به سرور...', 'info');
+            
+            try {
+                const response = await fetch(`${API_URL}/../health`, {
+                    method: 'GET',
+                    mode: 'cors',
+                    cache: 'no-cache',
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.status === 'ok') {
+                    addLog('✅ اتصال به سرور موفقیت‌آمیز بود', 'success');
+                    showResult('✅ سرور در دسترس است و به درستی کار می‌کند', 'success');
+                } else {
+                    addLog('❌ سرور پاسخ نامعتبر داد', 'error');
+                    showResult('❌ سرور پاسخ نامعتبر داد', 'error');
+                }
+            } catch (error) {
+                addLog(`❌ خطا: ${error.message}`, 'error');
+                showResult(`❌ خطا در اتصال به سرور: ${error.message}`, 'error');
+            }
+        }
+        
+        // تست ارسال OTP
+        async function testOTPSend() {
+            const testPhone = '09123456789';
+            addLog(`📱 شروع تست ارسال OTP به شماره ${testPhone}...`, 'info');
+            
+            try {
+                const response = await fetch(`${API_URL}/auth/send-otp`, {
+                    method: 'POST',
+                    mode: 'cors',
+                    cache: 'no-cache',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ phone: testPhone }),
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    addLog('✅ OTP با موفقیت ارسال شد', 'success');
+                    if (data.debug?.code) {
+                        addLog(`🔑 کد OTP: ${data.debug.code}`, 'info');
+                    }
+                    showResult('✅ سیستم OTP به درستی کار می‌کند', 'success');
+                } else {
+                    addLog(`❌ خطا: ${data.message}`, 'error');
+                    showResult(`❌ خطا در ارسال OTP: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                addLog(`❌ خطا: ${error.message}`, 'error');
+                showResult(`❌ خطا در ارسال OTP: ${error.message}`, 'error');
+            }
+        }
+        
+        // تست CORS
+        async function testCORS() {
+            addLog('🔒 شروع تست CORS...', 'info');
+            
+            try {
+                const response = await fetch(`${API_URL}/../health`, {
+                    method: 'OPTIONS',
+                    mode: 'cors',
+                    headers: {
+                        'Access-Control-Request-Method': 'POST',
+                        'Access-Control-Request-Headers': 'Content-Type,Authorization',
+                    },
+                });
+                
+                const corsHeaders = {
+                    'Access-Control-Allow-Origin': response.headers.get('Access-Control-Allow-Origin'),
+                    'Access-Control-Allow-Methods': response.headers.get('Access-Control-Allow-Methods'),
+                    'Access-Control-Allow-Headers': response.headers.get('Access-Control-Allow-Headers'),
+                };
+                
+                addLog(`✅ CORS Headers: ${JSON.stringify(corsHeaders)}`, 'success');
+                showResult('✅ CORS به درستی تنظیم شده است', 'success');
+            } catch (error) {
+                addLog(`❌ خطا: ${error.message}`, 'error');
+                showResult(`❌ خطا در تست CORS: ${error.message}`, 'error');
+            }
+        }
+        
+        // اجرای خودکار در بارگذاری صفحه
+        window.onload = function() {
+            displayBrowserInfo();
+            addLog('✅ صفحه تست بارگذاری شد', 'success');
+            addLog('💡 برای شروع تست، روی دکمه‌های بالا کلیک کنید', 'info');
+        };
+    </script>
+</body>
+</html>

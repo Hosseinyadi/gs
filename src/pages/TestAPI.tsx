@@ -66,7 +66,7 @@ const TestAPI = () => {
     await testEndpoint('Send OTP', 'http://localhost:8080/api/auth/send-otp', {
       method: 'POST',
       body: JSON.stringify({
-        phone: '+989123456789'
+        phone: '09123456789'
       })
     });
   };

@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>راهنمای شروع - Bil Flow</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: Tahoma, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 40px;
+            font-size: 18px;
+        }
+        .step {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            border: 3px solid #e0e0e0;
+            transition: all 0.3s;
+        }
+        .step:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+        }
+        .step-number {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            background: #667eea;
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 40px;
+            font-weight: bold;
+            font-size: 20px;
+            margin-left: 15px;
+            float: right;
+        }
+        .step-title {
+            font-size: 22px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 15px;
+            padding-right: 60px;
+        }
+        .step-content {
+            clear: both;
+            color: #555;
+            line-height: 1.8;
+            font-size: 16px;
+        }
+        .action-button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 15px;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .action-button:hover {
+            background: #5568d3;
+            transform: scale(1.05);
+        }
+        .success-box {
+            background: #d4edda;
+            border: 2px solid #28a745;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 30px;
+            text-align: center;
+        }
+        .success-box h3 {
+            color: #155724;
+            margin-bottom: 15px;
+        }
+        .link-list {
+            text-align: right;
+            margin-top: 15px;
+        }
+        .link-list a {
+            display: block;
+            background: #fff;
+            padding: 12px 20px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: bold;
+            transition: all 0.3s;
+            border: 2px solid #667eea;
+        }
+        .link-list a:hover {
+            background: #667eea;
+            color: white;
+        }
+        .warning-box {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .warning-box h4 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+        code {
+            background: #e9ecef;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            color: #d63384;
+        }
+        .tip {
+            background: #cfe2ff;
+            border-right: 4px solid #0d6efd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 راهنمای شروع Bil Flow</h1>
+        <div class="subtitle">تنها 3 قدم تا راه‌اندازی کامل!</div>
+
+        <!-- Step 1 -->
+        <div class="step">
+            <div class="step-number">1</div>
+            <div class="step-title">تست وضعیت سرورها</div>
+            <div class="step-content">
+                <p>ابتدا باید بررسی کنیم که سرورها روشن هستند یا خیر.</p>
+                <button class="action-button" onclick="window.open('TEST-SERVERS.html', '_blank')">
+                    🔍 تست سرورها
+                </button>
+                <div class="tip">
+                    💡 اگر هر دو سرور "✅ آنلاین" بودند، به مرحله 3 بروید. در غیر این صورت مرحله 2 را دنبال کنید.
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="step">
+            <div class="step-number">2</div>
+            <div class="step-title">راه‌اندازی سرورها</div>
+            <div class="step-content">
+                <h4>🎨 فرانت‌اند (Vite):</h4>
+                <p>1. به پوشه <code>C:\Users\rose\Desktop\site</code> بروید</p>
+                <p>2. روی فایل <strong>QUICK-START.bat</strong> دوبار کلیک کنید</p>
+                <p>3. صبر کنید تا پیام "Local: http://localhost:5173/" را ببینید</p>
+                
+                <br>
+                
+                <h4>⚙️ بک‌اند (Express):</h4>
+                <p>1. به پوشه <code>C:\Users\rose\Desktop\site\server</code> بروید</p>
+                <p>2. روی فایل <strong>QUICK-START-BACKEND.bat</strong> دوبار کلیک کنید</p>
+                <p>3. صبر کنید تا پیام "Server running on port 8080" را ببینید</p>
+                
+                <div class="warning-box">
+                    <h4>⚠️ نکته مهم</h4>
+                    <p>هر دو پنجره CMD را باز نگه دارید. اگر آنها را ببندید، سرورها متوقف می‌شوند!</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="step">
+            <div class="step-number">3</div>
+            <div class="step-title">استفاده از سایت</div>
+            <div class="step-content">
+                <p>حالا می‌توانید از سایت استفاده کنید:</p>
+                
+                <div class="link-list">
+                    <a href="http://localhost:5173/" target="_blank">
+                        🏠 صفحه اصلی
+                    </a>
+                    <a href="http://localhost:5173/auth" target="_blank">
+                        🔐 ورود با کد پیامکی (OTP)
+                    </a>
+                    <a href="http://localhost:5173/register" target="_blank">
+                        📝 ثبت‌نام
+                    </a>
+                    <a href="http://localhost:5173/test-api" target="_blank">
+                        🧪 تست API
+                    </a>
+                    <a href="http://localhost:5173/admin/login" target="_blank">
+                        👨‍💼 ورود ادمین
+                    </a>
+                </div>
+
+                <div class="tip">
+                    💡 برای ورود ادمین:<br>
+                    Username: <code>admin</code><br>
+                    Password: <code>admin123</code>
+                </div>
+            </div>
+        </div>
+
+        <!-- Success Box -->
+        <div class="success-box">
+            <h3>🎉 همه چیز آماده است!</h3>
+            <p>اگر به مشکلی برخوردید، فایل <strong>شروع_سریع.txt</strong> را برای راهنمای کامل مطالعه کنید.</p>
+            <p style="margin-top: 15px;">یا از دکمه زیر برای تست سرورها استفاده کنید:</p>
+            <button class="action-button" onclick="window.open('TEST-SERVERS.html', '_blank')" style="background: #28a745; margin-top: 15px;">
+                ✅ تست مجدد سرورها
+            </button>
+        </div>
+
+        <!-- Settings reminder -->
+        <div class="warning-box" style="margin-top: 30px;">
+            <h4>📋 یادآوری تنظیمات</h4>
+            <p>فایل <code>server\.env</code> را با تنظیمات زیر پر کنید:</p>
+            <pre style="background: #e9ecef; padding: 15px; border-radius: 8px; overflow-x: auto; margin-top: 10px; text-align: left; direction: ltr;">
+NODE_ENV=development
+PORT=8080
+JWT_SECRET=bil-flow-secret-key-2024
+
+ALLOWED_ORIGINS=http://localhost:5173,http://localhost:5174
+
+OTP_MOCK=true
+SMS_PROVIDER=smsir
+SMS_IR_API_KEY=YOUR_KEY
+SMS_IR_TEMPLATE_ID=123456</pre>
+        </div>
+    </div>
+</body>
+</html>

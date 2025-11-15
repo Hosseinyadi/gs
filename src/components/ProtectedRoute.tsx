@@ -15,12 +15,17 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
     return <div className="p-8 text-center">در حال بررسی دسترسی...</div>;
   }
 
-  if (!isAuthenticated) {
-    return <Navigate to="/auth" state={{ from: location.pathname }} replace />;
+  // If admin route is required
+  if (requireAdmin) {
+    if (!isAdmin) {
+      return <Navigate to="/admin/login" state={{ from: location.pathname }} replace />;
+    }
+    return <>{children}</>;
   }
 
-  if (requireAdmin && !isAdmin) {
-    return <Navigate to="/" replace />;
+  // For regular user routes
+  if (!isAuthenticated) {
+    return <Navigate to="/auth" state={{ from: location.pathname }} replace />;
   }
 
   return <>{children}</>;

@@ -1,5 +1,6 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import SEOHead from "@/components/SEOHead";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -29,6 +30,12 @@ const Contact = () => {
 
   return (
     <div className="min-h-screen">
+      <SEOHead 
+        title="تماس با گاراژ سنگین - ارتباط مستقیم با متخصصان ماشین‌آلات"
+        description="با کارشناسان گاراژ سنگین در تماس باشید. مشاوره رایگان خرید، فروش و اجاره ماشین‌آلات سنگین. پشتیبانی ۲۴ ساعته"
+        keywords="تماس گاراژ سنگین، مشاوره ماشین آلات، پشتیبانی، خدمات مشتریان، راهنمایی خرید"
+        url="https://garagesangin.com/contact"
+      />
       <Header />
       <main>
         {/* Hero Section */}
@@ -83,8 +90,8 @@ const Contact = () => {
                           </div>
                           <div>
                             <h3 className="font-bold mb-2">ایمیل</h3>
-                            <p className="text-muted-foreground">info@bilflow.ir</p>
-                            <p className="text-muted-foreground">support@bilflow.ir</p>
+                            <p className="text-muted-foreground">info@garagesangin.com</p>
+                            <p className="text-muted-foreground">support@garagesangin.com</p>
                           </div>
                         </div>
                       </CardContent>

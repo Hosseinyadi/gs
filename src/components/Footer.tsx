@@ -12,7 +12,7 @@ const Footer = () => {
                 <span className="text-white font-bold text-xl">پ</span>
               </div>
               <div>
-                <h3 className="text-xl font-bold">پارس اکسکاواتور</h3>
+                <h3 className="text-xl font-bold">گاراژ سنگین</h3>
                 <p className="text-gray-300 text-sm">ماشین‌آلات سنگین</p>
               </div>
             </div>
@@ -31,7 +31,7 @@ const Footer = () => {
               </div>
               <div className="flex items-center text-gray-300">
                 <Mail className="w-4 h-4 ml-3" />
-                <span>info@bilflow.ir</span>
+                <span>info@garagesangin.com</span>
               </div>
               <div className="flex items-start text-gray-300">
                 <MapPin className="w-4 h-4 ml-3 mt-1" />
@@ -90,7 +90,7 @@ const Footer = () => {
               </a>
             </div>
             <div className="space-y-2 pt-4">
-              <p className="text-gray-300 text-sm">تلگرام: @bilflow</p>
+              <p className="text-gray-300 text-sm">تلگرام: @garage_sangin</p>
               <p className="text-gray-300 text-sm">واتساپ: ۰۹۱۲۳۴۵۶۷۸۹</p>
             </div>
           </div>
@@ -100,7 +100,7 @@ const Footer = () => {
         <div className="border-t border-gray-700 mt-8 pt-6">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <p className="text-gray-400 text-sm mb-4 md:mb-0">
-              © ۱۴۰۳ پارس اکسکاواتور. تمامی حقوق محفوظ است.
+              © ۱۴۰۳ گاراژ سنگین. تمامی حقوق محفوظ است.
             </p>
             <p className="text-gray-400 text-sm">
               طراحی و توسعه با ❤️ برای صنعت ماشین‌آلات ایران

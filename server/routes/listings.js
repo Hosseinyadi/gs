@@ -5,6 +5,93 @@ const { authenticateUser, optionalAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
+// Get featured listings (public)
+router.get('/featured', async (req, res) => {
+    try {
+        const listings = await dbHelpers.all(`
+            SELECT
+                l.*,
+                c.name as category_name,
+                c.icon as category_icon,
+                (SELECT COUNT(*) FROM listing_views WHERE listing_id = l.id) as view_count,
+                1 as is_featured
+            FROM listings l
+            LEFT JOIN categories c ON l.category_id = c.id
+            INNER JOIN featured_listings fl ON l.id = fl.listing_id
+            WHERE l.is_active = 1
+            AND fl.end_date > datetime('now')
+            ORDER BY fl.created_at DESC
+            LIMIT 20
+        `);
+
+        // Parse JSON fields
+        const parsedListings = listings.map(listing => ({
+            ...listing,
+            images: listing.images ? JSON.parse(listing.images) : [],
+            specifications: listing.specifications ? JSON.parse(listing.specifications) : {},
+            is_active: Boolean(listing.is_active),
+            is_featured: true
+        }));
+
+        res.json({
+            success: true,
+            data: parsedListings,
+            message: 'Featured listings retrieved successfully'
+        });
+    } catch (error) {
+        console.error('Error fetching featured listings:', error);
+        res.status(500).json({
+            success: false,
+            message: 'خطا در دریافت آگهی‌های ویژه'
+        });
+    }
+});
+
+// Get user's own listings (authenticated)
+router.get('/my-listings', authenticateUser, async (req, res) => {
+    try {
+        const userId = req.user.id;
+
+        const listings = await dbHelpers.all(`
+            SELECT
+                l.*,
+                c.name as category_name,
+                c.icon as category_icon,
+                c.category_type,
+                at.name as ad_type_name,
+                (SELECT COUNT(*) FROM user_favorites WHERE listing_id = l.id) as favorite_count,
+                (SELECT COUNT(*) FROM listing_views WHERE listing_id = l.id) as view_count
+            FROM listings l
+            LEFT JOIN categories c ON l.category_id = c.id
+            LEFT JOIN ad_types at ON l.ad_type_id = at.id
+            WHERE l.user_id = ?
+            ORDER BY l.created_at DESC
+        `, [userId]);
+
+        // Parse JSON fields
+        const parsedListings = listings.map(listing => ({
+            ...listing,
+            images: listing.images ? JSON.parse(listing.images) : [],
+            tags: listing.tags ? JSON.parse(listing.tags) : [],
+            specifications: listing.specifications ? JSON.parse(listing.specifications) : {}
+        }));
+
+        res.json({
+            success: true,
+            data: {
+                listings: parsedListings,
+                total: parsedListings.length
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching user listings:', error);
+        res.status(500).json({
+            success: false,
+            message: 'خطا در دریافت آگهی‌های کاربر'
+        });
+    }
+});
+
 // Get all listings with filters
 router.get('/', [
     query('type').optional().isIn(['rent', 'sale']).withMessage('نوع آگهی نامعتبر است'),
@@ -95,7 +182,7 @@ router.get('/', [
 
         const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
-        // Get listings
+        // Get listings with improved sorting
         const listings = await dbHelpers.all(`
             SELECT
                 l.*,
@@ -105,13 +192,22 @@ router.get('/', [
                 at.name as ad_type_name,
                 at.slug as ad_type_slug,
                 u.name as user_name,
-                u.phone as user_phone
+                u.phone as user_phone,
+                fl.created_at as featured_date,
+                CASE 
+                    WHEN fl.end_date > datetime('now') THEN 1 
+                    ELSE 0 
+                END as is_currently_featured
             FROM listings l
             LEFT JOIN categories c ON l.category_id = c.id
             LEFT JOIN ad_types at ON l.ad_type_id = at.id
             LEFT JOIN users u ON l.user_id = u.id
+            LEFT JOIN featured_listings fl ON l.id = fl.listing_id AND fl.end_date > datetime('now')
             ${whereClause}
-            ORDER BY l.is_featured DESC, l.created_at DESC
+            ORDER BY 
+                is_currently_featured DESC,
+                fl.created_at DESC,
+                l.created_at DESC
             LIMIT ? OFFSET ?
         `, [...queryParams, parseInt(limit), offset]);
 
@@ -264,11 +360,13 @@ router.post('/', [
         const result = await dbHelpers.run(`
             INSERT INTO listings (
                 title, description, price, type, ad_type_id, category_id, user_id,
-                tags, images, location, condition, year, brand, model, specifications
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                tags, images, location, condition, year, brand, model, specifications,
+                is_active, is_featured, approval_status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
             title, description, price, type, ad_type_id || null, category_id, req.user.id,
-            JSON.stringify(tags), JSON.stringify(images), location, condition, year, brand, model, JSON.stringify(specifications)
+            JSON.stringify(tags), JSON.stringify(images), location, condition, year, brand, model, JSON.stringify(specifications),
+            0, 0, 'pending'
         ]);
 
         const newListing = await dbHelpers.get(
@@ -278,7 +376,7 @@ router.post('/', [
 
         res.status(201).json({
             success: true,
-            message: 'آگهی با موفقیت ایجاد شد',
+            message: 'آگهی با موفقیت ایجاد شد و در انتظار تایید مدیریت است',
             data: { listing: newListing }
         });
 

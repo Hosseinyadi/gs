@@ -33,9 +33,14 @@ const Register: React.FC = () => {
 
   const formatPhoneNumber = (phone: string) => {
     const cleaned = phone.replace(/\D/g, '');
-    if (cleaned.startsWith('09')) return '+98' + cleaned.substring(1);
-    if (cleaned.startsWith('9')) return '+98' + cleaned;
-    return phone;
+    // Keep local Iran format: 09xxxxxxxxx
+    if (cleaned.startsWith('09') && cleaned.length === 11) return cleaned;
+    // Convert 989xxxxxxxxx or +989xxxxxxxxx to 09xxxxxxxxx
+    if (cleaned.startsWith('98') && cleaned.length === 12) return '0' + cleaned.substring(2);
+    // Convert 9xxxxxxxxx (10 digits) to 09xxxxxxxxx
+    if (cleaned.startsWith('9') && cleaned.length === 10) return '0' + cleaned;
+    // Fallback: return cleaned digits
+    return cleaned;
   };
 
   const handleSendOTP = async () => {

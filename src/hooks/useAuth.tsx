@@ -60,7 +60,23 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const checkAuth = async () => {
       try {
         const token = localStorage.getItem('auth_token');
-        if (token) {
+        const adminToken = localStorage.getItem('admin_token');
+        
+        if (adminToken) {
+          // Check if admin is logged in
+          apiService.setToken(adminToken);
+          const adminData = localStorage.getItem('admin_data');
+          if (adminData) {
+            try {
+              setAdmin(JSON.parse(adminData));
+            } catch (e) {
+              console.error('Failed to parse admin data:', e);
+              localStorage.removeItem('admin_token');
+              localStorage.removeItem('admin_data');
+            }
+          }
+        } else if (token) {
+          // Check if regular user is logged in
           apiService.setToken(token);
           
           // Try to get user profile
@@ -130,6 +146,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       if (response.success && response.data) {
         setAdmin(response.data.admin);
         setUser(null); // Clear user if admin logs in
+        
+        // Save admin data to localStorage
+        localStorage.setItem('admin_token', response.data.token);
+        localStorage.setItem('admin_data', JSON.stringify(response.data.admin));
+        localStorage.removeItem('auth_token'); // Clear user token
+        
+        // ⚠️ مهم: ست کردن توکن در apiService
+        apiService.setToken(response.data.token);
+        
         return {
           success: true,
           message: response.message
@@ -176,6 +201,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     apiService.logout();
     setUser(null);
     setAdmin(null);
+    localStorage.removeItem('admin_token');
+    localStorage.removeItem('admin_data');
   };
 
   const value: AuthContextType = {
