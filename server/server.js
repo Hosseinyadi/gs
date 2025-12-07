@@ -220,6 +220,7 @@ app.use('/api/admin/providers', adminProvidersRoutes);
 app.use('/api/admin/security', require('./routes/adminSecurity'));
 app.use('/api/admin/support', require('./routes/adminSupport'));
 app.use('/api/admin/static-pages', require('./routes/adminStaticPages'));
+app.use('/api/admin/media', require('./routes/adminMedia'));
 app.use('/api/static-pages', require('./routes/staticPages'));
 app.use('/api/upload', uploadRoutes);
 
