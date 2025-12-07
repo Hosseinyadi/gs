@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <title>تست API صفحات استاتیک</title>
+    <style>
+        body { font-family: Tahoma; padding: 20px; background: #f5f5f5; }
+        .card { background: white; padding: 20px; margin: 10px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        pre { background: #f0f0f0; padding: 10px; overflow: auto; max-height: 400px; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>تست API صفحات استاتیک</h1>
+    
+    <div class="card">
+        <h3>۱. دریافت صفحات (بدون توکن)</h3>
+        <button onclick="testPublicAPI()">تست</button>
+        <pre id="result1"></pre>
+    </div>
+    
+    <div class="card">
+        <h3>۲. دریافت صفحات (با توکن ادمین)</h3>
+        <input type="text" id="adminToken" placeholder="توکن ادمین" style="width: 300px; padding: 8px;">
+        <button onclick="testAdminAPI()">تست</button>
+        <pre id="result2"></pre>
+    </div>
+    
+    <div class="card">
+        <h3>۳. بروزرسانی صفحه about</h3>
+        <textarea id="aboutContent" rows="5" style="width: 100%;" placeholder="محتوای جدید"></textarea>
+        <button onclick="updateAbout()">ذخیره</button>
+        <pre id="result3"></pre>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8080/api';
+        
+        async function testPublicAPI() {
+            try {
+                const res = await fetch(`${API_URL}/static-pages`);
+                const data = await res.json();
+                document.getElementById('result1').innerHTML = 
+                    `<span class="${data.success ? 'success' : 'error'}">${JSON.stringify(data, null, 2)}</span>`;
+            } catch (e) {
+                document.getElementById('result1').innerHTML = `<span class="error">Error: ${e.message}</span>`;
+            }
+        }
+        
+        async function testAdminAPI() {
+            const token = document.getElementById('adminToken').value || localStorage.getItem('adminToken');
+            try {
+                const res = await fetch(`${API_URL}/admin/static-pages`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                document.getElementById('result2').innerHTML = 
+                    `<span class="${data.success ? 'success' : 'error'}">${JSON.stringify(data, null, 2)}</span>`;
+            } catch (e) {
+                document.getElementById('result2').innerHTML = `<span class="error">Error: ${e.message}</span>`;
+            }
+        }
+        
+        async function updateAbout() {
+            const token = document.getElementById('adminToken').value || localStorage.getItem('adminToken');
+            const content = document.getElementById('aboutContent').value;
+            try {
+                const res = await fetch(`${API_URL}/admin/static-pages/about`, {
+                    method: 'PUT',
+                    headers: { 
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        title: 'درباره ما',
+                        content: content,
+                        meta_title: 'درباره گاراژ سنگین',
+                        meta_description: 'درباره پلتفرم گاراژ سنگین',
+                        is_active: true
+                    })
+                });
+                const data = await res.json();
+                document.getElementById('result3').innerHTML = 
+                    `<span class="${data.success ? 'success' : 'error'}">${JSON.stringify(data, null, 2)}</span>`;
+            } catch (e) {
+                document.getElementById('result3').innerHTML = `<span class="error">Error: ${e.message}</span>`;
+            }
+        }
+        
+        // Auto-load token from localStorage
+        const savedToken = localStorage.getItem('adminToken');
+        if (savedToken) {
+            document.getElementById('adminToken').value = savedToken;
+        }
+    </script>
+</body>
+</html>

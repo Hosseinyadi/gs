@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تست API مستقیم</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            direction: rtl;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        #result {
+            background: #f5f5f5;
+            padding: 20px;
+            margin-top: 20px;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>🧪 تست API مستقیم</h1>
+    
+    <div>
+        <h3>1. تست Categories:</h3>
+        <button onclick="testCategories()">تست دریافت دسته‌بندی‌ها</button>
+    </div>
+    
+    <div>
+        <h3>2. تست Login:</h3>
+        <input type="text" id="phone" placeholder="شماره موبایل" value="09123456789">
+        <input type="password" id="password" placeholder="رمز عبور" value="123456">
+        <button onclick="testLogin()">تست ورود</button>
+    </div>
+    
+    <div>
+        <h3>3. تست ثبت آگهی:</h3>
+        <button onclick="testCreateListing()">تست ثبت آگهی</button>
+    </div>
+    
+    <div id="result"></div>
+
+    <script>
+        const API_URL = 'http://localhost:8080/api';
+        let authToken = null;
+
+        function log(message, type = 'info') {
+            const result = document.getElementById('result');
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : '';
+            result.innerHTML += `<div class="${className}">${new Date().toLocaleTimeString()}: ${message}</div>\n`;
+        }
+
+        async function testCategories() {
+            log('🔍 در حال دریافت دسته‌بندی‌ها...');
+            try {
+                const response = await fetch(`${API_URL}/listings/categories/all`);
+                const data = await response.json();
+                log(`✅ دسته‌بندی‌ها: ${JSON.stringify(data, null, 2)}`, 'success');
+            } catch (error) {
+                log(`❌ خطا: ${error.message}`, 'error');
+            }
+        }
+
+        async function testLogin() {
+            const phone = document.getElementById('phone').value;
+            const password = document.getElementById('password').value;
+            
+            log(`🔐 در حال ورود با شماره ${phone}...`);
+            try {
+                const response = await fetch(`${API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ phone, password })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.data.token) {
+                    authToken = data.data.token;
+                    log(`✅ ورود موفق! توکن: ${authToken.substring(0, 20)}...`, 'success');
+                } else {
+                    log(`❌ ورود ناموفق: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ خطا: ${error.message}`, 'error');
+            }
+        }
+
+        async function testCreateListing() {
+            if (!authToken) {
+                log('❌ ابتدا وارد شوید!', 'error');
+                return;
+            }
+            
+            log('📝 در حال ثبت آگهی...');
+            
+            const listingData = {
+                title: 'تست آگهی از HTML',
+                description: 'این یک آگهی تستی است که مستقیماً از HTML ارسال شده',
+                price: 1000000,
+                type: 'sale',
+                category_id: 1,
+                location: 'تهران',
+                images: [],
+                specifications: {}
+            };
+            
+            try {
+                const response = await fetch(`${API_URL}/listings`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify(listingData)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    log(`✅ آگهی با موفقیت ثبت شد! ${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    log(`❌ خطا در ثبت آگهی: ${JSON.stringify(data, null, 2)}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ خطا: ${error.message}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

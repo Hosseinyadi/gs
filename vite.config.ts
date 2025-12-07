@@ -9,6 +9,19 @@ export default defineConfig(({ mode }) => ({
     port: 5173,
     open: true,
     strictPort: false,
+    hmr: {
+      overlay: true,
+    },
+    watch: {
+      usePolling: true,
+    },
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
   },
   plugins: [
     react(),
@@ -25,6 +38,10 @@ export default defineConfig(({ mode }) => ({
     cssMinify: true,
     rollupOptions: {
       output: {
+        // Cache busting with hash in filenames
+        entryFileNames: 'assets/[name].[hash].js',
+        chunkFileNames: 'assets/[name].[hash].js',
+        assetFileNames: 'assets/[name].[hash].[ext]',
         manualChunks: {
           // Vendor chunks for better caching
           vendor: ['react', 'react-dom'],

@@ -44,6 +44,19 @@ export const isValidPhone = (phone: string): boolean => {
   return phoneRegex.test(normalizedPhone);
 };
 
+// Normalize Iranian phone number to local format 09xxxxxxxxx for display/storage
+export const normalizeIranPhoneLocal = (phone: string | undefined | null): string => {
+  if (!phone) return '';
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length >= 10) {
+    const last10 = digits.slice(-10);
+    if (last10.startsWith('9')) {
+      return '0' + last10;
+    }
+  }
+  return digits;
+};
+
 // Validate password strength
 export const validatePassword = (password: string): { isValid: boolean; errors: string[] } => {
   const errors: string[] = [];

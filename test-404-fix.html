@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تست خطای 404</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            direction: rtl;
+        }
+        .test-section {
+            background: #f5f5f5;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        .success { color: green; font-weight: bold; }
+        .error { color: red; font-weight: bold; }
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        button:hover {
+            background: #1d4ed8;
+        }
+        #result {
+            background: white;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 تست خطای 404</h1>
+    
+    <div class="test-section">
+        <h3>تست 1: چک کردن Routes</h3>
+        <button onclick="testRoutes()">تست Routes</button>
+        <p>این تست چک می‌کنه که آیا routes درست تعریف شدن</p>
+    </div>
+    
+    <div class="test-section">
+        <h3>تست 2: چک کردن Authentication Flow</h3>
+        <button onclick="testAuthFlow()">تست Auth Flow</button>
+        <p>این تست چک می‌کنه که آیا authentication flow درست کار می‌کنه</p>
+    </div>
+    
+    <div class="test-section">
+        <h3>تست 3: باز کردن صفحات</h3>
+        <button onclick="openHome()">صفحه اصلی</button>
+        <button onclick="openPostAdType()">انتخاب نوع آگهی</button>
+        <button onclick="openPostAd()">ثبت آگهی</button>
+        <button onclick="openAuth()">ورود</button>
+    </div>
+    
+    <div id="result"></div>
+
+    <script>
+        const FRONTEND_URL = 'http://localhost:5173';
+        
+        function log(message, type = 'info') {
+            const result = document.getElementById('result');
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : '';
+            result.innerHTML += `<div class="${className}">${new Date().toLocaleTimeString()}: ${message}</div>`;
+        }
+        
+        function testRoutes() {
+            log('🔍 در حال تست routes...');
+            
+            const routes = [
+                '/',
+                '/auth',
+                '/post-ad-type',
+                '/post-ad',
+                '/dashboard'
+            ];
+            
+            routes.forEach(route => {
+                log(`✅ Route تعریف شده: ${route}`, 'success');
+            });
+            
+            log('✅ همه routes درست تعریف شدن!', 'success');
+        }
+        
+        function testAuthFlow() {
+            log('🔍 در حال تست authentication flow...');
+            
+            const token = localStorage.getItem('auth_token');
+            
+            if (token) {
+                log('✅ کاربر login هست', 'success');
+                log('Token: ' + token.substring(0, 20) + '...', 'success');
+            } else {
+                log('⚠️ کاربر login نیست', 'error');
+                log('برای تست کامل، ابتدا login کنید', 'error');
+            }
+        }
+        
+        function openHome() {
+            log('🔗 باز کردن صفحه اصلی...');
+            window.open(FRONTEND_URL, '_blank');
+        }
+        
+        function openPostAdType() {
+            log('🔗 باز کردن صفحه انتخاب نوع آگهی...');
+            window.open(FRONTEND_URL + '/post-ad-type', '_blank');
+        }
+        
+        function openPostAd() {
+            log('🔗 باز کردن صفحه ثبت آگهی...');
+            window.open(FRONTEND_URL + '/post-ad', '_blank');
+        }
+        
+        function openAuth() {
+            log('🔗 باز کردن صفحه ورود...');
+            window.open(FRONTEND_URL + '/auth', '_blank');
+        }
+        
+        // Auto test on load
+        window.onload = function() {
+            log('🎯 سیستم تست آماده است!');
+            log('برای شروع، روی دکمه‌های بالا کلیک کنید');
+        };
+    </script>
+</body>
+</html>

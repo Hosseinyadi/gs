@@ -3,6 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <!-- Cache Control -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    
     <title>گاراژ سنگین - خرید، فروش و اجاره ماشین‌آلات سنگین</title>
     <meta name="description" content="گاراژ سنگین، بزرگترین مرکز خرید، فروش و اجاره ماشین‌آلات سنگین ایران. بیل مکانیکی، لودر، بولدوزر، کمپرسی، کرین و قطعات یدکی با بهترین قیمت" />
     <meta name="keywords" content="گاراژ سنگین، ماشین آلات سنگین، بیل مکانیکی، لودر، بولدوزر، کرین، اجاره ماشین آلات، فروش ماشین آلات، قطعات یدکی، garage sangin, heavy machinery" />
@@ -70,19 +76,21 @@
 
   <body>
     <div id="root"></div>
+    
+    <!-- Auto Clear Cache on Version Change -->
+    <script src="/clear-cache.js"></script>
+    
     <script type="module" src="/src/main.tsx"></script>
     
-    <!-- Service Worker Registration for Performance -->
+    <!-- Service Worker Registration - Disabled for debugging -->
     <script>
+      // Unregister any existing service workers
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then((registration) => {
-              console.log('SW registered: ', registration);
-            })
-            .catch((registrationError) => {
-              console.log('SW registration failed: ', registrationError);
-            });
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          for(let registration of registrations) {
+            registration.unregister();
+            console.log('SW unregistered');
+          }
         });
       }
     </script>

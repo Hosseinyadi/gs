@@ -32,8 +32,10 @@ import {
   TrendingUp,
   DollarSign,
   Users,
-  Calendar
+  Calendar,
+  FileSpreadsheet
 } from "lucide-react";
+import { exportPaymentsToExcel } from "@/utils/exportData";
 
 interface Payment {
   id: number;
@@ -355,8 +357,19 @@ const AdminPayments = () => {
               <CreditCard className="w-5 h-5" />
               لیست پرداخت‌ها ({payments.length})
             </span>
-            <Button variant="outline" size="sm">
-              <Download className="w-4 h-4 ml-2" />
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => {
+                if (payments.length === 0) {
+                  toast.error('داده‌ای برای خروجی وجود ندارد');
+                  return;
+                }
+                exportPaymentsToExcel(payments);
+                toast.success('فایل Excel دانلود شد');
+              }}
+            >
+              <FileSpreadsheet className="w-4 h-4 ml-2" />
               خروجی Excel
             </Button>
           </CardTitle>

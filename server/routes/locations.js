@@ -7,7 +7,7 @@ const router = express.Router();
 router.get('/provinces', async (req, res) => {
   try {
     const provinces = await dbHelpers.all(
-      'SELECT * FROM provinces WHERE is_active = 1 ORDER BY name'
+      'SELECT * FROM provinces WHERE is_active = 1 ORDER BY COALESCE(sort_order, 999), name'
     );
 
     res.json({
@@ -101,6 +101,60 @@ router.post('/cities', async (req, res) => {
     });
   } catch (error) {
     console.error('Add city error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'خطای سرور'
+    });
+  }
+});
+
+// Get neighborhoods by city
+router.get('/neighborhoods/:cityId', async (req, res) => {
+  try {
+    const { cityId } = req.params;
+
+    const neighborhoods = await dbHelpers.all(
+      'SELECT * FROM neighborhoods WHERE city_id = ? AND is_active = 1 ORDER BY name',
+      [cityId]
+    );
+
+    res.json({
+      success: true,
+      data: { neighborhoods }
+    });
+  } catch (error) {
+    console.error('Get neighborhoods error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'خطای سرور'
+    });
+  }
+});
+
+// Add new neighborhood (admin only)
+router.post('/neighborhoods', async (req, res) => {
+  try {
+    const { name, name_en, city_id, is_active = true } = req.body;
+
+    if (!name || !city_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'نام محله و شهر الزامی است'
+      });
+    }
+
+    const result = await dbHelpers.run(
+      'INSERT INTO neighborhoods (name, name_en, city_id, is_active) VALUES (?, ?, ?, ?)',
+      [name, name_en, city_id, is_active]
+    );
+
+    res.status(201).json({
+      success: true,
+      message: 'محله با موفقیت اضافه شد',
+      data: { id: result.id }
+    });
+  } catch (error) {
+    console.error('Add neighborhood error:', error);
     res.status(500).json({
       success: false,
       message: 'خطای سرور'

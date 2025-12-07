@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>چک کردن وضعیت لاگین</title>
+    <style>
+        body {
+            font-family: Tahoma, Arial, sans-serif;
+            padding: 20px;
+            direction: rtl;
+        }
+        .box {
+            background: #f5f5f5;
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 8px;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .warning { background: #fff3cd; color: #856404; }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        pre {
+            background: #fff;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔐 چک کردن وضعیت لاگین</h1>
+    
+    <div id="status"></div>
+    
+    <div style="margin: 20px 0;">
+        <button onclick="checkAuth()">بررسی مجدد</button>
+        <button onclick="clearAuth()">پاک کردن Token</button>
+        <button onclick="window.location.href='http://localhost:5173/auth'">رفتن به صفحه لاگین</button>
+    </div>
+
+    <script>
+        function checkAuth() {
+            const statusDiv = document.getElementById('status');
+            
+            // چک کردن token
+            const token = localStorage.getItem('token');
+            const user = localStorage.getItem('user');
+            
+            if (!token) {
+                statusDiv.innerHTML = `
+                    <div class="box error">
+                        <h2>❌ شما لاگین نیستید!</h2>
+                        <p><strong>مشکل:</strong> Token در localStorage وجود ندارد</p>
+                        <p><strong>راه‌حل:</strong></p>
+                        <ol>
+                            <li>روی دکمه "رفتن به صفحه لاگین" کلیک کنید</li>
+                            <li>با شماره موبایل خود لاگین کنید</li>
+                            <li>بعد از لاگین، دوباره آگهی ثبت کنید</li>
+                        </ol>
+                    </div>
+                `;
+                return;
+            }
+            
+            // نمایش اطلاعات
+            let userInfo = 'اطلاعات موجود نیست';
+            try {
+                const userData = JSON.parse(user);
+                userInfo = `
+                    <pre>${JSON.stringify(userData, null, 2)}</pre>
+                `;
+            } catch (e) {
+                userInfo = user || 'خالی';
+            }
+            
+            statusDiv.innerHTML = `
+                <div class="box success">
+                    <h2>✅ شما لاگین هستید!</h2>
+                    <p><strong>Token:</strong></p>
+                    <pre>${token.substring(0, 50)}...</pre>
+                    
+                    <p><strong>اطلاعات کاربر:</strong></p>
+                    ${userInfo}
+                    
+                    <p style="margin-top: 20px;">
+                        <strong>✅ می‌توانید آگهی ثبت کنید</strong>
+                    </p>
+                </div>
+                
+                <div class="box warning">
+                    <h3>⚠️ اگر هنوز خطا می‌گیرید:</h3>
+                    <ol>
+                        <li>صفحه را رفرش کنید (Ctrl+F5)</li>
+                        <li>اگر باز هم خطا داد، Logout کنید و دوباره Login کنید</li>
+                        <li>مطمئن شوید سرور backend در حال اجرا است</li>
+                    </ol>
+                </div>
+            `;
+        }
+        
+        function clearAuth() {
+            if (confirm('آیا مطمئن هستید که می‌خواهید Token را پاک کنید؟')) {
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                alert('Token پاک شد. حالا باید دوباره لاگین کنید.');
+                checkAuth();
+            }
+        }
+        
+        // چک خودکار هنگام بارگذاری
+        window.onload = checkAuth;
+    </script>
+</body>
+</html>

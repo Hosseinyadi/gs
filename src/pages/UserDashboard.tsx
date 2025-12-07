@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import ProvinceSelect from "@/components/ui/ProvinceSelect";
 import { useAuth } from "@/hooks/useAuth";
 import apiService from "@/services/api";
 import { toast } from "sonner";
@@ -32,17 +33,24 @@ import {
   Download,
   Lock,
   AlertTriangle,
-  Star
+  Star,
+  RefreshCw
 } from "lucide-react";
+import ExpiringListings from "@/components/user/ExpiringListings";
+import DeleteListingDialog from "@/components/user/DeleteListingDialog";
 
 interface UserListing {
   id: number;
   title: string;
+  description: string;
   price: number;
   type: 'rent' | 'sale';
   category_name: string;
   images: string[];
   location: string;
+  province_id?: number;
+  city_id?: number;
+  neighborhood_id?: number;
   view_count: number;
   is_active: boolean;
   is_featured?: boolean;
@@ -98,12 +106,21 @@ const UserDashboard = () => {
   // Edit Dialog
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editingListing, setEditingListing] = useState<UserListing | null>(null);
+  const [provinces, setProvinces] = useState<{ id: number; name: string }[]>([]);
+  const [cities, setCities] = useState<{ id: number; name: string; province_id: number }[]>([]);
+  const [neighborhoods, setNeighborhoods] = useState<{ id: number; name: string; city_id: number }[]>([]);
+  const [editProvinceName, setEditProvinceName] = useState('');
   
   // Settings
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ current: '', new: '', confirm: '' });
   const [showNotifications, setShowNotifications] = useState(false);
+  
+  // Delete Listing Dialog
+  const [showDeleteListingDialog, setShowDeleteListingDialog] = useState(false);
+  const [deletingListing, setDeletingListing] = useState<UserListing | null>(null);
+  const [deletedListings, setDeletedListings] = useState<any[]>([]);
   
   const [profileForm, setProfileForm] = useState({
     name: user?.name || '',
@@ -128,7 +145,26 @@ const UserDashboard = () => {
       try {
         const listingsResponse = await apiService.getUserListings();
         if (listingsResponse.success && listingsResponse.data) {
-          setListings(listingsResponse.data.listings || []);
+          const userListings = listingsResponse.data.listings || [];
+          // Map to UserListing interface
+          const mappedListings: UserListing[] = userListings.map((listing: any) => ({
+            id: listing.id,
+            title: listing.title,
+            description: listing.description,
+            price: listing.price,
+            type: listing.type,
+            category_name: listing.category_name || 'دسته‌بندی نامشخص',
+            images: listing.images || [],
+            location: listing.location,
+            province_id: listing.province_id,
+            city_id: listing.city_id,
+            neighborhood_id: listing.neighborhood_id,
+            view_count: listing.view_count || 0,
+            is_active: listing.is_active,
+            is_featured: listing.is_featured || false,
+            created_at: listing.created_at
+          }));
+          setListings(mappedListings);
         }
       } catch (error) {
         console.error('Error loading listings:', error);
@@ -139,7 +175,19 @@ const UserDashboard = () => {
       try {
         const favoritesResponse = await apiService.getFavorites();
         if (favoritesResponse.success && favoritesResponse.data) {
-          setFavorites(favoritesResponse.data.favorites || []);
+          const userFavorites = favoritesResponse.data.favorites || [];
+          // Map to UserFavorite interface
+          const mappedFavorites: UserFavorite[] = userFavorites.map((favorite: any) => ({
+            id: favorite.id,
+            listing_id: favorite.listing_id || favorite.id,
+            title: favorite.title,
+            price: favorite.price,
+            type: favorite.type,
+            images: favorite.images || [],
+            location: favorite.location,
+            created_at: favorite.created_at
+          }));
+          setFavorites(mappedFavorites);
         }
       } catch (error) {
         console.error('Error loading favorites:', error);
@@ -160,6 +208,7 @@ const UserDashboard = () => {
         phone: user.phone || '',
       });
       loadUserData();
+      loadDeletedListings();
     }
   }, [user, loadUserData]);
 
@@ -182,21 +231,39 @@ const UserDashboard = () => {
     }
   };
 
-  const handleDeleteListing = async (id: number) => {
-    if (!confirm('آیا از حذف این آگهی اطمینان دارید؟')) return;
+  const openDeleteDialog = (listing: UserListing) => {
+    setDeletingListing(listing);
+    setShowDeleteListingDialog(true);
+  };
+
+  const handleDeleteListing = async (reason: string, reasonText: string) => {
+    if (!deletingListing) return;
 
     try {
-      const response = await apiService.deleteListing(id);
+      const response = await apiService.deleteListing(deletingListing.id, reason, reasonText);
       if (response.success) {
-        setListings(prev => prev.filter(listing => listing.id !== id));
+        setListings(prev => prev.filter(listing => listing.id !== deletingListing.id));
         toast.success('آگهی با موفقیت حذف شد');
+        setDeletingListing(null);
         await loadUserData();
+        await loadDeletedListings();
       } else {
         toast.error(response.message || 'خطا در حذف آگهی');
       }
     } catch (error) {
       console.error('Delete error:', error);
       toast.error('خطا در حذف آگهی');
+    }
+  };
+
+  const loadDeletedListings = async () => {
+    try {
+      const response = await apiService.getDeletedListings();
+      if (response.success && response.data) {
+        setDeletedListings((response.data as any).listings || []);
+      }
+    } catch (error) {
+      console.error('Error loading deleted listings:', error);
     }
   };
 
@@ -293,6 +360,113 @@ const UserDashboard = () => {
     return new Date(dateString).toLocaleDateString('fa-IR');
   };
 
+  const loadProvinces = async () => {
+    try {
+      const response = await apiService.getProvinces();
+      if (response.success && response.data) {
+        setProvinces(response.data.provinces);
+      }
+    } catch (error) {
+      console.error('Error loading provinces:', error);
+    }
+  };
+
+  const loadCitiesForProvince = async (provinceId: number) => {
+    try {
+      const response = await apiService.getCities(provinceId);
+      if (response.success && response.data) {
+        setCities(response.data.cities);
+      }
+    } catch (error) {
+      console.error('Error loading cities:', error);
+    }
+  };
+
+  const loadNeighborhoodsForCity = async (cityId: number) => {
+    try {
+      const response = await apiService.getNeighborhoods(cityId);
+      if (response.success && response.data) {
+        setNeighborhoods(response.data.neighborhoods);
+      }
+    } catch (error) {
+      console.error('Error loading neighborhoods:', error);
+    }
+  };
+
+  useEffect(() => {
+    void loadProvinces();
+  }, []);
+
+  useEffect(() => {
+    if (!editingListing || !editingListing.province_id || provinces.length === 0) return;
+
+    const province = provinces.find(p => p.id === editingListing.province_id);
+    if (province) {
+      setEditProvinceName(province.name);
+      void loadCitiesForProvince(province.id);
+    }
+
+    if (editingListing.city_id) {
+      void loadNeighborhoodsForCity(editingListing.city_id);
+    }
+  }, [editingListing, provinces]);
+
+  const handleEditProvinceChange = (value: string) => {
+    const provinceName = value === 'تمام شهرها' ? '' : value;
+    setEditProvinceName(provinceName);
+    setCities([]);
+    setNeighborhoods([]);
+
+    if (!editingListing) return;
+
+    if (!provinceName) {
+      setEditingListing({
+        ...editingListing,
+        province_id: undefined,
+        city_id: undefined,
+        neighborhood_id: undefined,
+      });
+      return;
+    }
+
+    const matched = provinces.find(p => p.name === provinceName);
+    if (matched) {
+      setEditingListing({
+        ...editingListing,
+        province_id: matched.id,
+        city_id: undefined,
+        neighborhood_id: undefined,
+      });
+      void loadCitiesForProvince(matched.id);
+    }
+  };
+
+  const handleEditCityChange = (value: string) => {
+    if (!editingListing) return;
+    const cityId = parseInt(value, 10);
+    const city = cities.find(c => c.id === cityId) || null;
+
+    setEditingListing({
+      ...editingListing,
+      city_id: isNaN(cityId) ? undefined : cityId,
+      neighborhood_id: undefined,
+    });
+    setNeighborhoods([]);
+
+    if (city && city.name === 'تهران') {
+      void loadNeighborhoodsForCity(cityId);
+    }
+  };
+
+  const handleEditNeighborhoodChange = (value: string) => {
+    if (!editingListing) return;
+    const neighborhoodId = parseInt(value, 10);
+    setEditingListing({
+      ...editingListing,
+      neighborhood_id: isNaN(neighborhoodId) ? undefined : neighborhoodId,
+    });
+  };
+
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -322,12 +496,13 @@ const UserDashboard = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="profile">پروفایل</TabsTrigger>
             <TabsTrigger value="listings">آگهی‌های من</TabsTrigger>
-            <TabsTrigger value="featured">آگهی‌های ویژه</TabsTrigger>
+            <TabsTrigger value="deleted">حذف شده</TabsTrigger>
+            <TabsTrigger value="featured">ویژه</TabsTrigger>
             <TabsTrigger value="payments">پرداخت‌ها</TabsTrigger>
-            <TabsTrigger value="favorites">علاقه‌مندی‌ها</TabsTrigger>
+            <TabsTrigger value="favorites">علاقه‌مندی</TabsTrigger>
             <TabsTrigger value="settings">تنظیمات</TabsTrigger>
           </TabsList>
 
@@ -390,6 +565,9 @@ const UserDashboard = () => {
                 آگهی جدید
               </Button>
             </div>
+
+            {/* آگهی‌های در حال انقضا و منقضی شده برای تمدید سریع */}
+            <ExpiringListings />
 
             {loading ? (
               <div className="flex justify-center py-8">
@@ -469,6 +647,15 @@ const UserDashboard = () => {
                           <Button
                             size="sm"
                             variant="outline"
+                            onClick={() => navigate(`/dashboard/renew/${listing.id}`)}
+                            className="flex-1"
+                          >
+                            <RefreshCw className="w-4 h-4 ml-1" />
+                            تمدید
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
                             onClick={() => openFeatureDialog(listing)}
                             className="flex-1"
                           >
@@ -488,10 +675,69 @@ const UserDashboard = () => {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleDeleteListing(listing.id)}
+                            onClick={() => openDeleteDialog(listing)}
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Deleted Listings Tab */}
+          <TabsContent value="deleted" className="space-y-6">
+            <h2 className="text-xl font-semibold">آگهی‌های حذف شده</h2>
+            
+            {deletedListings.length === 0 ? (
+              <Card>
+                <CardContent className="text-center py-8">
+                  <Trash2 className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                  <p className="text-muted-foreground">هیچ آگهی حذف شده‌ای ندارید</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {deletedListings.map((listing) => (
+                  <Card key={listing.id} className="border-red-100">
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-4">
+                        {listing.images && listing.images.length > 0 ? (
+                          <img
+                            src={listing.images[0]}
+                            alt={listing.title}
+                            className="w-20 h-20 object-cover rounded-lg opacity-50"
+                          />
+                        ) : (
+                          <div className="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center">
+                            <span className="text-gray-400 text-xs">بدون تصویر</span>
+                          </div>
+                        )}
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-gray-500 line-through">{listing.title}</h3>
+                          <p className="text-sm text-muted-foreground">{listing.category_name}</p>
+                          <div className="flex items-center gap-4 mt-2 text-sm">
+                            <Badge variant="outline" className="text-red-600 border-red-200">
+                              {listing.delete_reason === 'sold' && 'فروخته شد'}
+                              {listing.delete_reason === 'rented' && 'اجاره داده شد'}
+                              {listing.delete_reason === 'changed_mind' && 'پشیمان شدم'}
+                              {listing.delete_reason === 'not_interested' && 'صرفه‌نظر کردم'}
+                              {listing.delete_reason === 'successful_sale' && 'فروش موفق'}
+                              {listing.delete_reason === 'other' && 'سایر'}
+                              {!['sold', 'rented', 'changed_mind', 'not_interested', 'successful_sale', 'other'].includes(listing.delete_reason) && listing.delete_reason}
+                            </Badge>
+                            <span className="text-muted-foreground">
+                              حذف شده در {formatDate(listing.deleted_at)}
+                            </span>
+                          </div>
+                          {listing.delete_reason_text && (
+                            <p className="text-sm text-muted-foreground mt-1">
+                              توضیحات: {listing.delete_reason_text}
+                            </p>
+                          )}
                         </div>
                       </div>
                     </CardContent>
@@ -606,18 +852,18 @@ const UserDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {userListings.filter(l => l.is_featured).length === 0 ? (
+                  {listings.filter(l => l.is_featured).length === 0 ? (
                     <div className="text-center py-12">
                       <Star className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                       <p className="text-muted-foreground mb-4">هیچ آگهی ویژه‌ای ندارید</p>
-                      <Button onClick={() => navigate('/make-featured')}>
+                      <Button onClick={() => navigate('/post-ad')}>
                         <Plus className="w-4 h-4 ml-2" />
-                        ویژه کردن آگهی
+                        ثبت آگهی جدید
                       </Button>
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {userListings.filter(l => l.is_featured).map((listing) => (
+                      {listings.filter(l => l.is_featured).map((listing) => (
                         <Card key={listing.id} className="border-2 border-yellow-400">
                           <CardContent className="p-4">
                             <div className="flex gap-4">
@@ -783,13 +1029,66 @@ const UserDashboard = () => {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium">موقعیت مکانی</label>
-                  <Input
-                    value={editingListing.location}
-                    onChange={(e) => setEditingListing({ ...editingListing, location: e.target.value })}
-                    placeholder="شهر، استان"
+                  <label className="text-sm font-medium">توضیحات آگهی</label>
+                  <Textarea
+                    value={editingListing.description}
+                    onChange={(e) => setEditingListing({ ...editingListing, description: e.target.value })}
+                    placeholder="توضیحات کامل آگهی"
+                    rows={4}
                   />
                 </div>
+
+                <div>
+                  <label className="text-sm font-medium">استان</label>
+                  <ProvinceSelect
+                    value={editProvinceName}
+                    onValueChange={handleEditProvinceChange}
+                    placeholder="انتخاب استان"
+                    className="w-full"
+                  />
+                </div>
+
+                {cities.length > 0 && (
+                  <div>
+                    <label className="text-sm font-medium">شهر</label>
+                    <Select
+                      value={editingListing.city_id ? editingListing.city_id.toString() : ""}
+                      onValueChange={handleEditCityChange}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="انتخاب شهر" />
+                      </SelectTrigger>
+                      <SelectContent position="popper" className="max-h-[300px] overflow-y-auto z-50">
+                        {cities.map((city) => (
+                          <SelectItem key={city.id} value={city.id.toString()}>
+                            {city.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {neighborhoods.length > 0 && (
+                  <div>
+                    <label className="text-sm font-medium">محله (فقط برای شهر تهران)</label>
+                    <Select
+                      value={editingListing.neighborhood_id ? editingListing.neighborhood_id.toString() : ""}
+                      onValueChange={handleEditNeighborhoodChange}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="انتخاب محله" />
+                      </SelectTrigger>
+                      <SelectContent position="popper" className="max-h-[300px] overflow-y-auto z-50">
+                        {neighborhoods.map((n) => (
+                          <SelectItem key={n.id} value={n.id.toString()}>
+                            {n.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
 
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setShowEditDialog(false)}>
@@ -797,12 +1096,43 @@ const UserDashboard = () => {
                   </Button>
                   <Button onClick={async () => {
                     try {
-                      const response = await apiService.updateListing(editingListing.id, {
+                      let locationText = editingListing.location || '';
+
+                      if (editingListing.province_id || editingListing.city_id || editingListing.neighborhood_id) {
+                        const provinceName = editingListing.province_id
+                          ? provinces.find(p => p.id === editingListing.province_id)?.name || ''
+                          : '';
+                        const cityName = editingListing.city_id
+                          ? cities.find(c => c.id === editingListing.city_id)?.name || ''
+                          : '';
+                        const neighborhoodName = editingListing.neighborhood_id
+                          ? neighborhoods.find(n => n.id === editingListing.neighborhood_id)?.name || ''
+                          : '';
+                        const parts = [provinceName, cityName, neighborhoodName].filter(Boolean);
+                        if (parts.length > 0) {
+                          locationText = parts.join('، ');
+                        }
+                      }
+
+                      const payload: any = {
                         title: editingListing.title,
                         price: editingListing.price,
-                        location: editingListing.location,
-                      });
-                      
+                        location: locationText,
+                        description: editingListing.description,
+                      };
+
+                      if (editingListing.province_id !== undefined) {
+                        payload.province_id = editingListing.province_id;
+                      }
+                      if (editingListing.city_id !== undefined) {
+                        payload.city_id = editingListing.city_id;
+                      }
+                      if (editingListing.neighborhood_id !== undefined) {
+                        payload.neighborhood_id = editingListing.neighborhood_id;
+                      }
+
+                      const response = await apiService.updateListing(editingListing.id, payload);
+
                       if (response.success) {
                         toast.success('آگهی با موفقیت ویرایش شد');
                         setShowEditDialog(false);
@@ -890,6 +1220,14 @@ const UserDashboard = () => {
             )}
           </DialogContent>
         </Dialog>
+
+        {/* Delete Listing Dialog */}
+        <DeleteListingDialog
+          open={showDeleteListingDialog}
+          onOpenChange={setShowDeleteListingDialog}
+          listingTitle={deletingListing?.title || ''}
+          onConfirm={handleDeleteListing}
+        />
       </div>
     </div>
   );

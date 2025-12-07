@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تست صفحات آگهی</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            margin: 0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        h1 { color: #667eea; text-align: center; }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        .test-btn {
+            display: inline-block;
+            padding: 12px 24px;
+            margin: 5px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            text-decoration: none;
+            color: white;
+        }
+        .btn-blue { background: #667eea; }
+        .btn-green { background: #10b981; }
+        .btn-orange { background: #f59e0b; }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 13px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .result.success { background: #d1fae5; color: #065f46; }
+        .result.error { background: #fee2e2; color: #991b1b; }
+        pre { white-space: pre-wrap; word-wrap: break-word; }
+        iframe {
+            width: 100%;
+            height: 400px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 تست صفحات آگهی</h1>
+        
+        <div class="test-section">
+            <h3>📋 تست API آگهی‌ها</h3>
+            <button class="test-btn btn-blue" onclick="testListingsAPI()">لیست آگهی‌ها</button>
+            <button class="test-btn btn-green" onclick="testSingleListing(1)">آگهی #1</button>
+            <button class="test-btn btn-green" onclick="testSingleListing(2)">آگهی #2</button>
+            <button class="test-btn btn-orange" onclick="testSaleListings()">آگهی‌های فروش</button>
+            <button class="test-btn btn-orange" onclick="testRentListings()">آگهی‌های اجاره</button>
+            <div id="api-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>🌐 تست صفحات فرانت‌اند</h3>
+            <a href="http://localhost:5173/sale" target="_blank" class="test-btn btn-blue">صفحه فروش</a>
+            <a href="http://localhost:5173/rent" target="_blank" class="test-btn btn-green">صفحه اجاره</a>
+            <a href="http://localhost:5173/sale/1" target="_blank" class="test-btn btn-orange">جزئیات آگهی #1</a>
+            <a href="http://localhost:5173/rent/2" target="_blank" class="test-btn btn-orange">جزئیات آگهی #2</a>
+        </div>
+
+        <div class="test-section">
+            <h3>📺 پیش‌نمایش صفحه</h3>
+            <button class="test-btn btn-blue" onclick="loadPage('/sale')">صفحه فروش</button>
+            <button class="test-btn btn-green" onclick="loadPage('/rent')">صفحه اجاره</button>
+            <button class="test-btn btn-orange" onclick="loadPage('/sale/1')">جزئیات آگهی</button>
+            <iframe id="preview-frame" src="about:blank"></iframe>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8080/api';
+        const FRONTEND_URL = 'http://localhost:5173';
+
+        function showResult(elementId, data, isError = false) {
+            const el = document.getElementById(elementId);
+            el.className = `result ${isError ? 'error' : 'success'}`;
+            el.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+        }
+
+        async function apiCall(url) {
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                return { error: error.message };
+            }
+        }
+
+        async function testListingsAPI() {
+            const data = await apiCall(`${API_URL}/listings?limit=3`);
+            showResult('api-result', data, !!data.error);
+        }
+
+        async function testSingleListing(id) {
+            const data = await apiCall(`${API_URL}/listings/${id}`);
+            showResult('api-result', data, !!data.error);
+        }
+
+        async function testSaleListings() {
+            const data = await apiCall(`${API_URL}/listings?type=sale&limit=3`);
+            showResult('api-result', data, !!data.error);
+        }
+
+        async function testRentListings() {
+            const data = await apiCall(`${API_URL}/listings?type=rent&limit=3`);
+            showResult('api-result', data, !!data.error);
+        }
+
+        function loadPage(path) {
+            document.getElementById('preview-frame').src = `${FRONTEND_URL}${path}`;
+        }
+
+        // Auto test on load
+        window.onload = () => {
+            testListingsAPI();
+        };
+    </script>
+</body>
+</html>

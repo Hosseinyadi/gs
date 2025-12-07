@@ -15,6 +15,36 @@ if (!fs.existsSync(tmpDir)) {
 }
 const upload = multer({ dest: tmpDir });
 
+// Get listing stats for admin panel - MUST BE BEFORE /listings/:id
+router.get('/listings/stats', authenticateAdmin, async (req, res) => {
+    try {
+        // Ensure is_archived column exists
+        try {
+            await dbHelpers.run("ALTER TABLE listings ADD COLUMN is_archived INTEGER DEFAULT 0");
+        } catch (e) { /* column may already exist */ }
+
+        const [pending, approved, archived, deleted] = await Promise.all([
+            dbHelpers.get("SELECT COUNT(*) as count FROM listings WHERE is_active = 0 AND COALESCE(is_archived, 0) = 0"),
+            dbHelpers.get("SELECT COUNT(*) as count FROM listings WHERE is_active = 1 AND COALESCE(is_archived, 0) = 0"),
+            dbHelpers.get("SELECT COUNT(*) as count FROM listings WHERE COALESCE(is_archived, 0) = 1"),
+            dbHelpers.get("SELECT COUNT(*) as count FROM deleted_listings")
+        ]);
+
+        res.json({
+            success: true,
+            data: {
+                pending: pending?.count || 0,
+                approved: approved?.count || 0,
+                archived: archived?.count || 0,
+                deleted: deleted?.count || 0
+            }
+        });
+    } catch (error) {
+        console.error('Get listing stats error:', error);
+        res.status(500).json({ success: false, message: 'خطای سرور' });
+    }
+});
+
 // Get all listings for admin
 router.get('/listings', [
     query('page').optional().isInt({ min: 1 }).withMessage('شماره صفحه نامعتبر است'),
@@ -37,7 +67,9 @@ router.get('/listings', [
             limit = 20,
             type,
             status,
-            search
+            search,
+            approval_status,
+            is_archived
         } = req.query;
 
         const offset = (page - 1) * limit;
@@ -49,11 +81,30 @@ router.get('/listings', [
             queryParams.push(type);
         }
 
-        if (status === 'active') {
+        // فیلتر بر اساس approval_status (pending = در انتظار تایید، approved = تایید شده)
+        // فیلتر بایگانی - اول چک میشه
+        if (is_archived === 'true' || is_archived === '1') {
+            // فقط آگهی‌های بایگانی شده
+            whereConditions.push('COALESCE(l.is_archived, 0) = 1');
+        } else {
+            // آگهی‌های غیر بایگانی
+            if (approval_status === 'pending') {
+                whereConditions.push('l.is_active = 0');
+                whereConditions.push('COALESCE(l.is_archived, 0) = 0');
+            } else if (approval_status === 'approved') {
+                whereConditions.push('l.is_active = 1');
+                whereConditions.push('COALESCE(l.is_archived, 0) = 0');
+            } else if (is_archived === 'false' || is_archived === '0') {
+                whereConditions.push('COALESCE(l.is_archived, 0) = 0');
+            }
+        }
+
+        // فیلتر قدیمی status (برای سازگاری)
+        if (status === 'active' && !approval_status) {
             whereConditions.push('l.is_active = 1');
-        } else if (status === 'inactive') {
+        } else if (status === 'inactive' && !approval_status) {
             whereConditions.push('l.is_active = 0');
-        } else if (status === 'pending') {
+        } else if (status === 'pending' && !approval_status) {
             whereConditions.push('l.is_active = 0');
         }
 
@@ -91,12 +142,12 @@ router.get('/listings', [
             ${whereClause}
         `, queryParams);
 
-        const total = countResult.total;
+        const total = countResult?.total || 0;
         const totalPages = Math.ceil(total / limit);
 
         // Get pending count
         const pendingCount = await dbHelpers.get(
-            'SELECT COUNT(*) as count FROM listings WHERE is_active = 0'
+            'SELECT COUNT(*) as count FROM listings WHERE is_active = 0 AND COALESCE(is_archived, 0) = 0'
         );
 
         res.json({
@@ -109,7 +160,7 @@ router.get('/listings', [
                     total_items: total,
                     items_per_page: parseInt(limit)
                 },
-                pending_count: pendingCount.count
+                pending_count: pendingCount?.count || 0
             }
         });
 
@@ -562,62 +613,7 @@ router.post('/listings/:id/approve', authenticateAdmin, async (req, res) => {
     }
 });
 
-// Reject listing
-router.post('/listings/:id/reject', [
-    body('reason').optional().isString().withMessage('دلیل رد باید متن باشد')
-], authenticateAdmin, async (req, res) => {
-    try {
-        const errors = validationResult(req);
-        if (!errors.isEmpty()) {
-            return res.status(400).json({
-                success: false,
-                message: 'اطلاعات ورودی نامعتبر است',
-                errors: errors.array()
-            });
-        }
-
-        const { id } = req.params;
-        const { reason } = req.body;
-
-        const listing = await dbHelpers.get(
-            'SELECT * FROM listings WHERE id = ?',
-            [id]
-        );
-
-        if (!listing) {
-            return res.status(404).json({
-                success: false,
-                message: 'آگهی یافت نشد'
-            });
-        }
-
-        await dbHelpers.run(
-            'UPDATE listings SET is_active = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-            [id]
-        );
-
-        await logAdminAction(
-            req.admin.id,
-            'reject_listing',
-            'listing',
-            id,
-            { reason },
-            req
-        );
-
-        res.json({
-            success: true,
-            message: 'آگهی رد شد'
-        });
-
-    } catch (error) {
-        console.error('Reject listing error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'خطای سرور'
-        });
-    }
-});
+// NOTE: Reject listing API moved to line ~1740 with notification support
 
 // Update listing status
 router.patch('/listings/:id/status', [
@@ -752,14 +748,15 @@ router.patch('/listings/:id/status', [
     }
 });
 
-// Delete listing (admin)
+// Delete listing (admin) - انتقال به جدول آگهی‌های حذف شده
 router.delete('/listings/:id', authenticateAdmin, async (req, res) => {
     try {
         const { id } = req.params;
+        const { reason = 'admin_removed', reason_text = '' } = req.body || {};
 
         // Check if listing exists
         const listing = await dbHelpers.get(
-            'SELECT id FROM listings WHERE id = ?',
+            'SELECT * FROM listings WHERE id = ?',
             [id]
         );
 
@@ -770,11 +767,23 @@ router.delete('/listings/:id', authenticateAdmin, async (req, res) => {
             });
         }
 
-        // Soft delete
-        await dbHelpers.run(
-            'UPDATE listings SET is_active = 0 WHERE id = ?',
-            [id]
-        );
+        // ذخیره آگهی در جدول آگهی‌های حذف شده
+        await dbHelpers.run(`
+            INSERT INTO deleted_listings (
+                listing_id, user_id, title, description, price, type, 
+                category_id, images, location, deleted_by, delete_reason, 
+                delete_reason_text, admin_id, original_created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [
+            listing.id, listing.user_id, listing.title, listing.description,
+            listing.price, listing.type, listing.category_id, listing.images,
+            listing.location, 'admin', reason, reason_text, req.admin.id, listing.created_at
+        ]);
+
+        // حذف آگهی از جدول اصلی
+        await dbHelpers.run('DELETE FROM listings WHERE id = ?', [id]);
+        await dbHelpers.run('DELETE FROM user_favorites WHERE listing_id = ?', [id]);
+        await dbHelpers.run('DELETE FROM featured_listings WHERE listing_id = ?', [id]);
 
         // Log action
         await logAdminAction(
@@ -783,12 +792,12 @@ router.delete('/listings/:id', authenticateAdmin, async (req, res) => {
             'listing',
             id,
             null,
-            req
+            { reason, reason_text }
         );
 
         res.json({
             success: true,
-            message: 'آگهی حذف شد'
+            message: 'آگهی به بایگانی حذف شده‌ها منتقل شد'
         });
 
     } catch (error) {
@@ -2588,6 +2597,386 @@ router.delete('/backup/monthly/cleanup', authenticateAdmin, async (req, res) => 
             success: false,
             message: 'خطای سرور'
         });
+    }
+});
+
+// ==================== Home Featured Listings Management ====================
+
+// Toggle home featured status - ویژه صفحه اصلی
+router.post('/listings/:id/toggle-home-featured', authenticateAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const listing = await dbHelpers.get(
+            'SELECT * FROM listings WHERE id = ?',
+            [id]
+        );
+
+        if (!listing) {
+            return res.status(404).json({
+                success: false,
+                message: 'آگهی یافت نشد'
+            });
+        }
+
+        const newHomeFeaturedStatus = listing.is_home_featured ? 0 : 1;
+        const homeFeaturedAt = newHomeFeaturedStatus === 1 ? 'CURRENT_TIMESTAMP' : 'NULL';
+
+        await dbHelpers.run(
+            `UPDATE listings SET 
+                is_home_featured = ?, 
+                home_featured_at = ${newHomeFeaturedStatus === 1 ? 'CURRENT_TIMESTAMP' : 'NULL'},
+                updated_at = CURRENT_TIMESTAMP 
+            WHERE id = ?`,
+            [newHomeFeaturedStatus, id]
+        );
+
+        await logAdminAction(
+            req.admin.id,
+            newHomeFeaturedStatus === 1 ? 'add_home_featured' : 'remove_home_featured',
+            'listing',
+            id,
+            null,
+            req
+        );
+
+        res.json({
+            success: true,
+            message: newHomeFeaturedStatus === 1 ? 'آگهی به ویژه صفحه اصلی اضافه شد' : 'آگهی از ویژه صفحه اصلی حذف شد',
+            data: { is_home_featured: newHomeFeaturedStatus }
+        });
+
+    } catch (error) {
+        console.error('Toggle home featured error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'خطای سرور'
+        });
+    }
+});
+
+// Get home featured listings for admin
+router.get('/home-featured', authenticateAdmin, async (req, res) => {
+    try {
+        const listings = await dbHelpers.all(`
+            SELECT 
+                l.*,
+                c.name as category_name,
+                u.name as user_name,
+                u.phone as user_phone
+            FROM listings l
+            LEFT JOIN categories c ON l.category_id = c.id
+            LEFT JOIN users u ON l.user_id = u.id
+            WHERE l.is_home_featured = 1
+            ORDER BY l.home_featured_at DESC, l.created_at DESC
+        `);
+
+        res.json({
+            success: true,
+            data: { listings }
+        });
+
+    } catch (error) {
+        console.error('Get home featured listings error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'خطای سرور'
+        });
+    }
+});
+
+// Bulk update home featured listings
+router.post('/home-featured/bulk', [
+    body('listing_ids').isArray().withMessage('لیست آگهی‌ها الزامی است'),
+    body('action').isIn(['add', 'remove']).withMessage('عملیات نامعتبر است')
+], authenticateAdmin, async (req, res) => {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({
+                success: false,
+                message: 'اطلاعات ورودی نامعتبر است',
+                errors: errors.array()
+            });
+        }
+
+        const { listing_ids, action } = req.body;
+        const newStatus = action === 'add' ? 1 : 0;
+
+        for (const listingId of listing_ids) {
+            await dbHelpers.run(
+                `UPDATE listings SET 
+                    is_home_featured = ?, 
+                    home_featured_at = ${newStatus === 1 ? 'CURRENT_TIMESTAMP' : 'NULL'},
+                    updated_at = CURRENT_TIMESTAMP 
+                WHERE id = ?`,
+                [newStatus, listingId]
+            );
+        }
+
+        await logAdminAction(
+            req.admin.id,
+            action === 'add' ? 'bulk_add_home_featured' : 'bulk_remove_home_featured',
+            'listings',
+            null,
+            { listing_ids },
+            req
+        );
+
+        res.json({
+            success: true,
+            message: action === 'add' 
+                ? `${listing_ids.length} آگهی به ویژه صفحه اصلی اضافه شد` 
+                : `${listing_ids.length} آگهی از ویژه صفحه اصلی حذف شد`
+        });
+
+    } catch (error) {
+        console.error('Bulk update home featured error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'خطای سرور'
+        });
+    }
+});
+
+// Archive listing
+router.post('/listings/:id/archive', authenticateAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Ensure is_archived column exists
+        try {
+            await dbHelpers.run("ALTER TABLE listings ADD COLUMN is_archived INTEGER DEFAULT 0");
+        } catch (e) { /* column may already exist */ }
+
+        const listing = await dbHelpers.get('SELECT id FROM listings WHERE id = ?', [id]);
+        if (!listing) {
+            return res.status(404).json({ success: false, message: 'آگهی یافت نشد' });
+        }
+
+        await dbHelpers.run('UPDATE listings SET is_archived = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [id]);
+        await logAdminAction(req.admin.id, 'archive_listing', 'listing', id, null, req);
+
+        res.json({ success: true, message: 'آگهی به بایگانی منتقل شد' });
+    } catch (error) {
+        console.error('Archive listing error:', error);
+        res.status(500).json({ success: false, message: 'خطای سرور' });
+    }
+});
+
+// Unarchive listing
+router.post('/listings/:id/unarchive', authenticateAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const listing = await dbHelpers.get('SELECT id FROM listings WHERE id = ?', [id]);
+        if (!listing) {
+            return res.status(404).json({ success: false, message: 'آگهی یافت نشد' });
+        }
+
+        await dbHelpers.run('UPDATE listings SET is_archived = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [id]);
+        await logAdminAction(req.admin.id, 'unarchive_listing', 'listing', id, null, req);
+
+        res.json({ success: true, message: 'آگهی از بایگانی بازگردانده شد' });
+    } catch (error) {
+        console.error('Unarchive listing error:', error);
+        res.status(500).json({ success: false, message: 'خطای سرور' });
+    }
+});
+
+// Get all deleted listings (admin)
+router.get('/deleted-listings', authenticateAdmin, async (req, res) => {
+    try {
+        const { page = 1, limit = 20, deleted_by, reason } = req.query;
+        const offset = (page - 1) * limit;
+
+        let whereConditions = [];
+        let params = [];
+
+        if (deleted_by) {
+            whereConditions.push('dl.deleted_by = ?');
+            params.push(deleted_by);
+        }
+
+        if (reason) {
+            whereConditions.push('dl.delete_reason = ?');
+            params.push(reason);
+        }
+
+        const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+
+        const deletedListings = await dbHelpers.all(`
+            SELECT dl.*, 
+                   c.name as category_name,
+                   u.name as user_name,
+                   u.phone as user_phone,
+                   a.name as admin_name
+            FROM deleted_listings dl
+            LEFT JOIN categories c ON dl.category_id = c.id
+            LEFT JOIN users u ON dl.user_id = u.id
+            LEFT JOIN admin_users a ON dl.admin_id = a.id
+            ${whereClause}
+            ORDER BY dl.deleted_at DESC
+            LIMIT ? OFFSET ?
+        `, [...params, parseInt(limit), offset]);
+
+        const countResult = await dbHelpers.get(`
+            SELECT COUNT(*) as total FROM deleted_listings dl ${whereClause}
+        `, params);
+
+        // Parse JSON fields
+        const parsedListings = deletedListings.map(listing => ({
+            ...listing,
+            images: listing.images ? JSON.parse(listing.images) : []
+        }));
+
+        res.json({
+            success: true,
+            data: {
+                listings: parsedListings,
+                pagination: {
+                    current_page: parseInt(page),
+                    total_pages: Math.ceil(countResult.total / limit),
+                    total_items: countResult.total,
+                    items_per_page: parseInt(limit)
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Get deleted listings error:', error);
+        res.status(500).json({ success: false, message: 'خطای سرور' });
+    }
+});
+
+// Restore deleted listing (بازگرداندن آگهی حذف شده)
+router.post('/deleted-listings/:id/restore', authenticateAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // پیدا کردن آگهی حذف شده
+        const deletedListing = await dbHelpers.get('SELECT * FROM deleted_listings WHERE id = ?', [id]);
+        
+        if (!deletedListing) {
+            return res.status(404).json({
+                success: false,
+                message: 'آگهی حذف شده یافت نشد'
+            });
+        }
+
+        // بازگرداندن آگهی به جدول اصلی
+        const result = await dbHelpers.run(`
+            INSERT INTO listings (
+                user_id, title, description, price, type, 
+                category_id, images, location, is_active, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+        `, [
+            deletedListing.user_id, 
+            deletedListing.title, 
+            deletedListing.description,
+            deletedListing.price, 
+            deletedListing.type, 
+            deletedListing.category_id, 
+            deletedListing.images,
+            deletedListing.location, 
+            deletedListing.original_created_at
+        ]);
+
+        // حذف از جدول آگهی‌های حذف شده
+        await dbHelpers.run('DELETE FROM deleted_listings WHERE id = ?', [id]);
+
+        await logAdminAction(req.admin.id, 'restore_listing', 'listing', result.id, null, { 
+            original_id: deletedListing.listing_id,
+            title: deletedListing.title 
+        });
+
+        res.json({
+            success: true,
+            message: 'آگهی با موفقیت بازگردانده شد',
+            data: { new_listing_id: result.id }
+        });
+    } catch (error) {
+        console.error('Restore deleted listing error:', error);
+        res.status(500).json({ success: false, message: 'خطای سرور' });
+    }
+});
+
+// Permanently delete listing (حذف دائمی آگهی)
+router.delete('/deleted-listings/:id/permanent', authenticateAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const deletedListing = await dbHelpers.get('SELECT * FROM deleted_listings WHERE id = ?', [id]);
+        
+        if (!deletedListing) {
+            return res.status(404).json({
+                success: false,
+                message: 'آگهی حذف شده یافت نشد'
+            });
+        }
+
+        // حذف دائمی از جدول آگهی‌های حذف شده
+        await dbHelpers.run('DELETE FROM deleted_listings WHERE id = ?', [id]);
+
+        await logAdminAction(req.admin.id, 'permanent_delete_listing', 'listing', id, null, { 
+            title: deletedListing.title,
+            original_id: deletedListing.listing_id
+        });
+
+        res.json({
+            success: true,
+            message: 'آگهی به طور دائمی حذف شد'
+        });
+    } catch (error) {
+        console.error('Permanent delete listing error:', error);
+        res.status(500).json({ success: false, message: 'خطای سرور' });
+    }
+});
+
+// Admin delete listing with reason
+router.delete('/listings/:id/force', [
+    body('reason').optional().isString(),
+    body('reason_text').optional().isString()
+], authenticateAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { reason = 'admin_removed', reason_text = '' } = req.body;
+
+        const listing = await dbHelpers.get('SELECT * FROM listings WHERE id = ?', [id]);
+
+        if (!listing) {
+            return res.status(404).json({
+                success: false,
+                message: 'آگهی یافت نشد'
+            });
+        }
+
+        // ذخیره آگهی در جدول آگهی‌های حذف شده
+        await dbHelpers.run(`
+            INSERT INTO deleted_listings (
+                listing_id, user_id, title, description, price, type, 
+                category_id, images, location, deleted_by, delete_reason, 
+                delete_reason_text, admin_id, original_created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [
+            listing.id, listing.user_id, listing.title, listing.description,
+            listing.price, listing.type, listing.category_id, listing.images,
+            listing.location, 'admin', reason, reason_text, req.admin.id, listing.created_at
+        ]);
+
+        // حذف کامل آگهی
+        await dbHelpers.run('DELETE FROM listings WHERE id = ?', [id]);
+        await dbHelpers.run('DELETE FROM user_favorites WHERE listing_id = ?', [id]);
+        await dbHelpers.run('DELETE FROM featured_listings WHERE listing_id = ?', [id]);
+
+        await logAdminAction(req.admin.id, 'force_delete_listing', 'listing', id, null, { reason, reason_text });
+
+        res.json({
+            success: true,
+            message: 'آگهی با موفقیت حذف شد'
+        });
+    } catch (error) {
+        console.error('Force delete listing error:', error);
+        res.status(500).json({ success: false, message: 'خطای سرور' });
     }
 });
 

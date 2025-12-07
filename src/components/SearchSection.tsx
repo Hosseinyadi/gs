@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
@@ -6,6 +7,7 @@ import { Search, MapPin, DollarSign, Filter } from "lucide-react";
 import { categories, provinces, cities } from "@/data/machinery";
 
 const SearchSection = () => {
+  const navigate = useNavigate();
   const [selectedProvince, setSelectedProvince] = useState('');
   const [selectedCity, setSelectedCity] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -16,8 +18,16 @@ const SearchSection = () => {
     : ['همه شهرها'];
 
   const handleSearch = () => {
-    // This would normally navigate to search results
-    console.log('Search with:', { selectedProvince, selectedCity, selectedCategory, maxPrice });
+    const params = new URLSearchParams();
+    if (selectedProvince) params.set('province', selectedProvince);
+    if (selectedCity && selectedCity !== 'همه شهرها') params.set('city', selectedCity);
+    if (selectedCategory) params.set('category', selectedCategory);
+    if (maxPrice) params.set('maxPrice', maxPrice);
+    navigate(`/search?${params.toString()}`);
+  };
+
+  const handleQuickSearch = (query: string) => {
+    navigate(`/search?q=${encodeURIComponent(query)}`);
   };
 
   return (
@@ -124,10 +134,10 @@ const SearchSection = () => {
 
           <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
             <span>جستجوهای پرطرفدار:</span>
-            <button className="text-primary hover:underline">بیل مکانیکی تهران</button>
-            <button className="text-primary hover:underline">لودر اجاره‌ای</button>
-            <button className="text-primary hover:underline">بولدوزر کاترپیلار</button>
-            <button className="text-primary hover:underline">کرین سنگین</button>
+            <button onClick={() => handleQuickSearch('بیل مکانیکی تهران')} className="text-primary hover:underline">بیل مکانیکی تهران</button>
+            <button onClick={() => handleQuickSearch('لودر اجاره‌ای')} className="text-primary hover:underline">لودر اجاره‌ای</button>
+            <button onClick={() => handleQuickSearch('بولدوزر کاترپیلار')} className="text-primary hover:underline">بولدوزر کاترپیلار</button>
+            <button onClick={() => handleQuickSearch('کرین سنگین')} className="text-primary hover:underline">کرین سنگین</button>
           </div>
         </div>
       </div>

@@ -11,18 +11,20 @@ class ListingLimitsService {
       startOfMonth.setDate(1);
       startOfMonth.setHours(0, 0, 0, 0);
 
-      // تعداد آگهی‌های منتشر شده در ماه جاری
+      // تعداد آگهی‌های منتشر شده در ماه جاری (فقط آگهی‌های فعال یا در انتظار تایید)
       const monthlyListings = await dbHelpers.get(
         `SELECT COUNT(*) as count 
          FROM listings 
          WHERE user_id = ? 
          AND created_at >= ? 
-         AND status != 'deleted'`,
+         AND is_active != 0`,
         [userId, startOfMonth.toISOString()]
       );
 
-      const currentCount = monthlyListings.count;
+      const currentCount = monthlyListings?.count || 0;
       const freeLimit = 1; // یک آگهی رایگان در ماه
+
+      console.log('[ListingLimits] User:', userId, 'Monthly count:', currentCount, 'Free limit:', freeLimit);
 
       return {
         current_count: currentCount,

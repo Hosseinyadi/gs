@@ -215,12 +215,19 @@ const AdminManagement = () => {
     }
   };
 
-  const handleDeleteAdmin = async (adminId: number) => {
-    if (!confirm('آیا از حذف این ادمین اطمینان دارید؟ این عمل قابل بازگشت نیست.')) return;
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteAdminId, setDeleteAdminId] = useState<number | null>(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+
+  const handleDeleteAdmin = async () => {
+    if (!deleteAdminId || deleteConfirmText !== 'حذف') {
+      toast.error('لطفاً کلمه "حذف" را برای تأیید وارد کنید');
+      return;
+    }
 
     try {
       const token = localStorage.getItem('adminToken') || localStorage.getItem('admin_token');
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/admin/management/${adminId}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/admin/management/${deleteAdminId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -231,6 +238,9 @@ const AdminManagement = () => {
       if (data.success) {
         toast.success('ادمین با موفقیت حذف شد');
         loadAdmins();
+        setShowDeleteConfirm(false);
+        setDeleteAdminId(null);
+        setDeleteConfirmText('');
       } else {
         toast.error(data.error?.message || 'خطا در حذف ادمین');
       }
@@ -238,6 +248,12 @@ const AdminManagement = () => {
       console.error('Error deleting admin:', error);
       toast.error('خطا در حذف ادمین');
     }
+  };
+
+  const openDeleteConfirm = (adminId: number) => {
+    setDeleteAdminId(adminId);
+    setDeleteConfirmText('');
+    setShowDeleteConfirm(true);
   };
 
   const handleChangePassword = async () => {
@@ -497,7 +513,7 @@ const AdminManagement = () => {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleDeleteAdmin(admin.id)}
+                        onClick={() => openDeleteConfirm(admin.id)}
                         disabled={admin.is_super_admin}
                         className="text-red-600 hover:text-red-700"
                         title="حذف"
@@ -541,6 +557,53 @@ const AdminManagement = () => {
             <Button onClick={handleChangePassword} className="w-full">
               تغییر رمز عبور
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-red-600 flex items-center gap-2">
+              <Trash2 className="w-5 h-5" />
+              حذف ادمین
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <p className="text-red-800 font-medium">⚠️ هشدار: این عمل قابل بازگشت نیست!</p>
+              <p className="text-red-600 text-sm mt-1">
+                با حذف این ادمین، تمام دسترسی‌های او از بین خواهد رفت.
+              </p>
+            </div>
+            <div>
+              <Label>برای تأیید، کلمه <strong className="text-red-600">حذف</strong> را تایپ کنید:</Label>
+              <Input
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="حذف"
+                className="mt-2 text-center"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1"
+              >
+                انصراف
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={handleDeleteAdmin}
+                disabled={deleteConfirmText !== 'حذف'}
+                className="flex-1"
+              >
+                <Trash2 className="w-4 h-4 ml-2" />
+                حذف ادمین
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

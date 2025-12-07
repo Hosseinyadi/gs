@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import apiService from "@/services/api";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { normalizeIranPhoneLocal } from "@/utils/security";
 import { Phone, Mail, MessageSquare, Send, MapPin, Calendar, Heart, Eye, User, ArrowLeft } from "lucide-react";
 
 interface Listing {
@@ -169,6 +170,8 @@ const ProductDetail = () => {
     );
   }
 
+  const sellerPhone = normalizeIranPhoneLocal(listing.user_phone);
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
@@ -293,8 +296,8 @@ const ProductDetail = () => {
                       className="w-full" 
                       size="lg"
                       onClick={() => {
-                        if (listing.user_phone) {
-                          const tel = String(listing.user_phone).replace(/\s+/g, '');
+                        if (sellerPhone) {
+                          const tel = sellerPhone.replace(/\s+/g, '');
                           window.location.href = `tel:${tel}`;
                         } else {
                           toast.info('شماره فروشنده موجود نیست');
@@ -329,12 +332,12 @@ const ProductDetail = () => {
               <CardContent>
                 <div className="space-y-2">
                   <p className="font-medium">{listing.user_name}</p>
-                  {listing.user_phone ? (
+                  {sellerPhone ? (
                     <a
-                      href={`tel:${String(listing.user_phone).replace(/\s+/g, '')}`}
+                      href={`tel:${sellerPhone.replace(/\s+/g, '')}`}
                       className="text-sm text-blue-600 hover:underline"
                     >
-                      {listing.user_phone}
+                      {sellerPhone}
                     </a>
                   ) : (
                     <p className="text-sm text-muted-foreground">شماره تماس موجود نیست</p>

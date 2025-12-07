@@ -5,6 +5,49 @@ const { authenticateUser, optionalAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
+// Get home featured listings (public) - آگهی‌های ویژه صفحه اصلی
+router.get('/home-featured', async (req, res) => {
+    try {
+        const listings = await dbHelpers.all(`
+            SELECT
+                l.*,
+                c.name as category_name,
+                c.icon as category_icon,
+                (SELECT COUNT(*) FROM listing_views WHERE listing_id = l.id) as view_count,
+                1 as is_featured,
+                1 as is_home_featured
+            FROM listings l
+            LEFT JOIN categories c ON l.category_id = c.id
+            WHERE l.is_active = 1
+            AND l.is_home_featured = 1
+            ORDER BY l.home_featured_at DESC, l.created_at DESC
+            LIMIT 20
+        `);
+
+        // Parse JSON fields
+        const parsedListings = listings.map(listing => ({
+            ...listing,
+            images: listing.images ? JSON.parse(listing.images) : [],
+            specifications: listing.specifications ? JSON.parse(listing.specifications) : {},
+            is_active: Boolean(listing.is_active),
+            is_featured: true,
+            is_home_featured: true
+        }));
+
+        res.json({
+            success: true,
+            data: parsedListings,
+            message: 'Home featured listings retrieved successfully'
+        });
+    } catch (error) {
+        console.error('Error fetching home featured listings:', error);
+        res.status(500).json({
+            success: false,
+            message: 'خطا در دریافت آگهی‌های ویژه صفحه اصلی'
+        });
+    }
+});
+
 // Get featured listings (public)
 router.get('/featured', async (req, res) => {
     try {
@@ -20,7 +63,7 @@ router.get('/featured', async (req, res) => {
             INNER JOIN featured_listings fl ON l.id = fl.listing_id
             WHERE l.is_active = 1
             AND fl.end_date > datetime('now')
-            ORDER BY fl.created_at DESC
+            ORDER BY fl.created_at DESC, l.created_at DESC
             LIMIT 20
         `);
 
@@ -189,8 +232,6 @@ router.get('/', [
                 c.name as category_name,
                 c.slug as category_slug,
                 c.category_type,
-                at.name as ad_type_name,
-                at.slug as ad_type_slug,
                 u.name as user_name,
                 u.phone as user_phone,
                 fl.created_at as featured_date,
@@ -200,7 +241,6 @@ router.get('/', [
                 END as is_currently_featured
             FROM listings l
             LEFT JOIN categories c ON l.category_id = c.id
-            LEFT JOIN ad_types at ON l.ad_type_id = at.id
             LEFT JOIN users u ON l.user_id = u.id
             LEFT JOIN featured_listings fl ON l.id = fl.listing_id AND fl.end_date > datetime('now')
             ${whereClause}
@@ -210,6 +250,16 @@ router.get('/', [
                 l.created_at DESC
             LIMIT ? OFFSET ?
         `, [...queryParams, parseInt(limit), offset]);
+
+        // Parse JSON fields
+        const parsedListings = listings.map(listing => ({
+            ...listing,
+            images: listing.images ? JSON.parse(listing.images) : [],
+            tags: listing.tags ? JSON.parse(listing.tags) : [],
+            specifications: listing.specifications ? JSON.parse(listing.specifications) : {},
+            is_active: Boolean(listing.is_active),
+            is_featured: Boolean(listing.is_featured || listing.is_currently_featured)
+        }));
 
         // Get total count
         const countResult = await dbHelpers.get(`
@@ -223,7 +273,7 @@ router.get('/', [
 
         // Add favorite status for authenticated users
         if (req.user) {
-            for (let listing of listings) {
+            for (let listing of parsedListings) {
                 const favorite = await dbHelpers.get(
                     'SELECT id FROM user_favorites WHERE user_id = ? AND listing_id = ?',
                     [req.user.id, listing.id]
@@ -235,7 +285,7 @@ router.get('/', [
         res.json({
             success: true,
             data: {
-                listings,
+                listings: parsedListings,
                 pagination: {
                     current_page: parseInt(page),
                     total_pages: totalPages,
@@ -296,18 +346,28 @@ router.get('/:id', optionalAuth, async (req, res) => {
             [id]
         );
 
+        // Parse JSON fields
+        const parsedListing = {
+            ...listing,
+            images: listing.images ? JSON.parse(listing.images) : [],
+            tags: listing.tags ? JSON.parse(listing.tags) : [],
+            specifications: listing.specifications ? JSON.parse(listing.specifications) : {},
+            is_active: Boolean(listing.is_active),
+            is_featured: Boolean(listing.is_featured)
+        };
+
         // Add favorite status for authenticated users
         if (req.user) {
             const favorite = await dbHelpers.get(
                 'SELECT id FROM user_favorites WHERE user_id = ? AND listing_id = ?',
                 [req.user.id, listing.id]
             );
-            listing.is_favorite = !!favorite;
+            parsedListing.is_favorite = !!favorite;
         }
 
         res.json({
             success: true,
-            data: { listing }
+            data: { listing: parsedListing }
         });
 
     } catch (error) {
@@ -315,6 +375,29 @@ router.get('/:id', optionalAuth, async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'خطای سرور'
+        });
+    }
+});
+
+// Check listing limit before creating
+router.get('/check-limit', authenticateUser, async (req, res) => {
+    try {
+        const listingLimitsService = require('../services/listingLimits');
+        const limitCheck = await listingLimitsService.checkMonthlyListingLimit(req.user.id);
+        const costInfo = await listingLimitsService.calculateListingCost(req.user.id);
+        
+        res.json({
+            success: true,
+            data: {
+                ...limitCheck,
+                cost_info: costInfo
+            }
+        });
+    } catch (error) {
+        console.error('Check limit error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'خطا در بررسی محدودیت'
         });
     }
 });
@@ -327,8 +410,8 @@ router.post('/', [
     body('type').isIn(['rent', 'sale']).withMessage('نوع آگهی نامعتبر است'),
     body('ad_type_id').optional().isInt().withMessage('نوع آگهی نامعتبر است'),
     body('category_id').isInt().withMessage('دسته‌بندی نامعتبر است'),
-    body('tags').optional().isArray().withMessage('برچسب‌ها باید آرایه باشند'),
-    body('location').isLength({ min: 2 }).withMessage('موقعیت مکانی الزامی است')
+    body('tags').optional(),
+    body('location').notEmpty().isLength({ min: 2 }).withMessage('انتخاب استان الزامی است')
 ], authenticateUser, async (req, res) => {
     try {
         const errors = validationResult(req);
@@ -347,7 +430,7 @@ router.post('/', [
             type,
             ad_type_id,
             category_id,
-            tags = [],
+            tags,
             images = [],
             location,
             condition,
@@ -357,6 +440,56 @@ router.post('/', [
             specifications = {}
         } = req.body;
 
+        // بررسی محدودیت آگهی ماهانه
+        const listingLimitsService = require('../services/listingLimits');
+        const limitCheck = await listingLimitsService.checkMonthlyListingLimit(req.user.id);
+        
+        console.log('[Create Listing] User:', req.user.id, 'Limit check:', limitCheck);
+
+        // Parse tags if it's a string
+        let parsedTags = tags;
+        if (typeof tags === 'string') {
+            try {
+                parsedTags = JSON.parse(tags);
+            } catch (e) {
+                parsedTags = [];
+            }
+        } else if (!Array.isArray(tags)) {
+            parsedTags = [];
+        }
+
+        // اگر آگهی رایگان نیست، نیاز به پرداخت دارد
+        if (limitCheck.needs_payment) {
+            // ذخیره اطلاعات آگهی در جدول پرداخت‌های معلق
+            const costInfo = await listingLimitsService.calculateListingCost(req.user.id);
+            
+            const listingData = {
+                title, description, price, type, ad_type_id, category_id,
+                tags: parsedTags, images, location, condition, year, brand, model, specifications
+            };
+            
+            // ایجاد رکورد پرداخت معلق
+            const paymentResult = await dbHelpers.run(`
+                INSERT INTO additional_listing_payments 
+                (user_id, amount, listing_data, status, created_at)
+                VALUES (?, ?, ?, 'pending', CURRENT_TIMESTAMP)
+            `, [req.user.id, costInfo.cost, JSON.stringify(listingData)]);
+            
+            return res.status(402).json({
+                success: false,
+                needs_payment: true,
+                payment_id: paymentResult.id,
+                amount: costInfo.cost,
+                message: `شما در این ماه ${limitCheck.current_count} آگهی ثبت کرده‌اید. برای ثبت آگهی اضافی باید ${costInfo.cost.toLocaleString('fa-IR')} تومان پرداخت کنید.`,
+                data: {
+                    current_count: limitCheck.current_count,
+                    free_limit: limitCheck.free_limit,
+                    cost: costInfo.cost
+                }
+            });
+        }
+
+        // ایجاد آگهی با وضعیت در انتظار تایید
         const result = await dbHelpers.run(`
             INSERT INTO listings (
                 title, description, price, type, ad_type_id, category_id, user_id,
@@ -365,8 +498,8 @@ router.post('/', [
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
             title, description, price, type, ad_type_id || null, category_id, req.user.id,
-            JSON.stringify(tags), JSON.stringify(images), location, condition, year, brand, model, JSON.stringify(specifications),
-            0, 0, 'pending'
+            JSON.stringify(parsedTags), JSON.stringify(images), location, condition, year, brand, model, JSON.stringify(specifications),
+            0, 0, 'pending'  // is_active = 0 تا زمان تایید مدیر
         ]);
 
         const newListing = await dbHelpers.get(
@@ -376,8 +509,12 @@ router.post('/', [
 
         res.status(201).json({
             success: true,
-            message: 'آگهی با موفقیت ایجاد شد و در انتظار تایید مدیریت است',
-            data: { listing: newListing }
+            message: 'آگهی با موفقیت ثبت شد و در انتظار تایید مدیریت است',
+            data: { 
+                listing: newListing,
+                approval_status: 'pending',
+                is_free: true
+            }
         });
 
     } catch (error) {
@@ -465,10 +602,14 @@ router.put('/:id', [
     }
 });
 
-// Delete listing
-router.delete('/:id', authenticateUser, async (req, res) => {
+// Delete listing with reason
+router.delete('/:id', [
+    body('reason').optional().isString(),
+    body('reason_text').optional().isString()
+], authenticateUser, async (req, res) => {
     try {
         const { id } = req.params;
+        const { reason = 'not_specified', reason_text = '' } = req.body;
 
         // Check if listing exists and belongs to user
         const listing = await dbHelpers.get(
@@ -483,10 +624,29 @@ router.delete('/:id', authenticateUser, async (req, res) => {
             });
         }
 
-        await dbHelpers.run(
-            'UPDATE listings SET is_active = 0 WHERE id = ?',
-            [id]
-        );
+        // ذخیره آگهی در جدول آگهی‌های حذف شده
+        await dbHelpers.run(`
+            INSERT INTO deleted_listings (
+                listing_id, user_id, title, description, price, type, 
+                category_id, images, location, deleted_by, delete_reason, 
+                delete_reason_text, original_created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [
+            listing.id, listing.user_id, listing.title, listing.description,
+            listing.price, listing.type, listing.category_id, listing.images,
+            listing.location, 'user', reason, reason_text, listing.created_at
+        ]);
+
+        // حذف کامل آگهی از جدول اصلی
+        await dbHelpers.run('DELETE FROM listings WHERE id = ?', [id]);
+
+        // حذف از علاقه‌مندی‌ها
+        await dbHelpers.run('DELETE FROM user_favorites WHERE listing_id = ?', [id]);
+
+        // حذف از آگهی‌های ویژه
+        await dbHelpers.run('DELETE FROM featured_listings WHERE listing_id = ?', [id]);
+
+        console.log('[Delete Listing] User:', req.user.id, 'Listing:', id, 'Reason:', reason);
 
         res.json({
             success: true,
@@ -495,6 +655,36 @@ router.delete('/:id', authenticateUser, async (req, res) => {
 
     } catch (error) {
         console.error('Delete listing error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'خطای سرور'
+        });
+    }
+});
+
+// Get user's deleted listings
+router.get('/deleted/my-listings', authenticateUser, async (req, res) => {
+    try {
+        const deletedListings = await dbHelpers.all(`
+            SELECT dl.*, c.name as category_name
+            FROM deleted_listings dl
+            LEFT JOIN categories c ON dl.category_id = c.id
+            WHERE dl.user_id = ?
+            ORDER BY dl.deleted_at DESC
+        `, [req.user.id]);
+
+        // Parse JSON fields
+        const parsedListings = deletedListings.map(listing => ({
+            ...listing,
+            images: listing.images ? JSON.parse(listing.images) : []
+        }));
+
+        res.json({
+            success: true,
+            data: { listings: parsedListings }
+        });
+    } catch (error) {
+        console.error('Get deleted listings error:', error);
         res.status(500).json({
             success: false,
             message: 'خطای سرور'

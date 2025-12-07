@@ -5,6 +5,7 @@ import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import ProvinceSelect from "@/components/ui/ProvinceSelect";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, Clock, Search as SearchIcon, SlidersHorizontal, Heart, Eye } from "lucide-react";
@@ -34,7 +35,7 @@ interface Category {
   id: number;
   name: string;
   slug: string;
-  icon: string;
+  icon?: string;
 }
 
 const RentAds = () => {
@@ -51,9 +52,13 @@ const RentAds = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  // Load categories on mount
+  // Load categories and saved province on mount
   useEffect(() => {
     loadCategories();
+    const savedProvince = localStorage.getItem('selectedProvince');
+    if (savedProvince && savedProvince !== 'تمام شهرها') {
+      setSelectedProvince(savedProvince);
+    }
   }, []);
 
   const loadCategories = async () => {
@@ -86,13 +91,13 @@ const RentAds = () => {
       };
 
       if (searchQuery) params.search = searchQuery;
-      if (selectedCategory) params.category = selectedCategory;
+      if (selectedCategory) params.category = parseInt(selectedCategory);
       if (selectedProvince) params.location = selectedProvince;
 
       const response = await apiService.getListings(params);
       if (response.success && response.data) {
         // Parse images for each listing
-        const parsedListings = response.data.listings.map(listing => {
+        const parsedListings = response.data.listings.map((listing: any) => {
           if (typeof listing.images === 'string') {
             try {
               listing.images = JSON.parse(listing.images);
@@ -100,7 +105,7 @@ const RentAds = () => {
               listing.images = [];
             }
           }
-          return listing;
+          return listing as Listing;
         });
         setListings(parsedListings);
         setTotalPages(response.data.pagination.total_pages);
@@ -237,12 +242,13 @@ const RentAds = () => {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">موقعیت مکانی</label>
-                    <Input
-                      type="text"
-                      placeholder="شهر یا استان..."
+                    <label className="text-sm font-medium">استان</label>
+                    <ProvinceSelect
                       value={selectedProvince}
-                      onChange={(e) => setSelectedProvince(e.target.value)}
+                      onValueChange={setSelectedProvince}
+                      placeholder="انتخاب استان"
+                      className="w-full"
+                      showAllOption={true}
                     />
                   </div>
                 </div>
@@ -346,6 +352,17 @@ const RentAds = () => {
                               {listing.year && (
                                 <Badge variant="outline">{listing.year}</Badge>
                               )}
+                            </div>
+                          )}
+
+                          {/* Tags Display */}
+                          {(listing as any).tags && Array.isArray((listing as any).tags) && (listing as any).tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {(listing as any).tags.slice(0, 3).map((tag: string, index: number) => (
+                                <Badge key={`${tag}-${index}`} variant="secondary" className="text-xs">
+                                  {tag}
+                                </Badge>
+                              ))}
                             </div>
                           )}
                         </div>

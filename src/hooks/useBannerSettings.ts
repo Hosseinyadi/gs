@@ -52,6 +52,14 @@ export const useBannerSettings = () => {
       const response = await fetch('/api/admin/settings?category=banner');
       
       if (response.ok) {
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          // Not JSON, use defaults
+          console.warn('Banner settings API returned non-JSON, using defaults');
+          setSettings(defaultSettings);
+          setLoading(false);
+          return;
+        }
         const data = await response.json();
         
         if (data.success && data.data?.settings) {

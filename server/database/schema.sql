@@ -330,18 +330,40 @@ INSERT OR IGNORE INTO ad_types (name, slug, description) VALUES
 ('همکاری تجاری', 'business-cooperation', 'پیشنهاد همکاری و مشارکت تجاری'),
 ('تبلیغات', 'advertising', 'آگهی‌های تبلیغاتی و بازاریابی');
 
--- Insert default provinces
+-- Insert default provinces (31 استان + کل ایران)
 INSERT OR IGNORE INTO provinces (name, name_en) VALUES
+('کل ایران', 'All Iran'),
 ('تهران', 'Tehran'),
+('خوزستان', 'Khuzestan'),
+('بوشهر', 'Bushehr'),
 ('اصفهان', 'Isfahan'),
-('فارس', 'Fars'),
 ('خراسان رضوی', 'Razavi Khorasan'),
+('فارس', 'Fars'),
 ('آذربایجان شرقی', 'East Azerbaijan'),
 ('مازندران', 'Mazandaran'),
-('گیلان', 'Gilan'),
 ('کرمان', 'Kerman'),
-('خوزستان', 'Khuzestan'),
-('سیستان و بلوچستان', 'Sistan and Baluchestan');
+('البرز', 'Alborz'),
+('گیلان', 'Gilan'),
+('کهگیلویه و بویراحمد', 'Kohgiluyeh and Boyer-Ahmad'),
+('آذربایجان غربی', 'West Azerbaijan'),
+('هرمزگان', 'Hormozgan'),
+('مرکزی', 'Markazi'),
+('یزد', 'Yazd'),
+('کرمانشاه', 'Kermanshah'),
+('قزوین', 'Qazvin'),
+('سیستان و بلوچستان', 'Sistan and Baluchestan'),
+('همدان', 'Hamadan'),
+('ایلام', 'Ilam'),
+('گلستان', 'Golestan'),
+('لرستان', 'Lorestan'),
+('زنجان', 'Zanjan'),
+('اردبیل', 'Ardabil'),
+('قم', 'Qom'),
+('کردستان', 'Kurdistan'),
+('سمنان', 'Semnan'),
+('چهارمحال و بختیاری', 'Chaharmahal and Bakhtiari'),
+('خراسان شمالی', 'North Khorasan'),
+('خراسان جنوبی', 'South Khorasan');
 
 -- Insert default cities for Tehran
 INSERT OR IGNORE INTO cities (name, name_en, province_id) VALUES

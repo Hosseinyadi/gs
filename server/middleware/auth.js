@@ -90,7 +90,9 @@ const authenticateAdmin = async (req, res, next) => {
                 a.name,
                 a.role, 
                 a.is_super_admin,
+                a.is_master_admin,
                 a.role_id,
+                a.created_by_master,
                 a.permissions as custom_permissions,
                 r.name as role_name,
                 r.permissions as role_permissions
@@ -194,6 +196,85 @@ const requireSuperAdmin = (req, res, next) => {
     next();
 };
 
+// Require master admin - بالاترین سطح دسترسی
+const requireMasterAdmin = (req, res, next) => {
+    if (!req.admin) {
+        return res.status(401).json({
+            success: false,
+            message: 'Authentication required.'
+        });
+    }
+
+    if (!req.admin.is_master_admin) {
+        return res.status(403).json({
+            success: false,
+            message: 'فقط مستر ادمین به این بخش دسترسی دارد.'
+        });
+    }
+
+    next();
+};
+
+// Check if admin can manage another admin
+const canManageAdmin = async (req, res, next) => {
+    if (!req.admin) {
+        return res.status(401).json({
+            success: false,
+            message: 'Authentication required.'
+        });
+    }
+
+    const targetAdminId = req.params.id || req.body.admin_id;
+    
+    if (!targetAdminId) {
+        return next();
+    }
+
+    // Master admin can manage everyone
+    if (req.admin.is_master_admin) {
+        return next();
+    }
+
+    // Get target admin info
+    const targetAdmin = await dbHelpers.get(
+        'SELECT id, is_super_admin, is_master_admin, created_by_master FROM admin_users WHERE id = ?',
+        [targetAdminId]
+    );
+
+    if (!targetAdmin) {
+        return res.status(404).json({
+            success: false,
+            message: 'ادمین مورد نظر یافت نشد.'
+        });
+    }
+
+    // Cannot manage master admin
+    if (targetAdmin.is_master_admin) {
+        return res.status(403).json({
+            success: false,
+            message: 'امکان مدیریت مستر ادمین وجود ندارد.'
+        });
+    }
+
+    // Super admin can only manage non-super admins
+    if (req.admin.is_super_admin && !targetAdmin.is_super_admin) {
+        return next();
+    }
+
+    // Super admin cannot manage other super admins (only master can)
+    if (req.admin.is_super_admin && targetAdmin.is_super_admin) {
+        return res.status(403).json({
+            success: false,
+            message: 'فقط مستر ادمین می‌تواند سوپر ادمین‌ها را مدیریت کند.'
+        });
+    }
+
+    return res.status(403).json({
+        success: false,
+        message: 'شما مجوز مدیریت این ادمین را ندارید.'
+    });
+};
+
 // Log admin action
 const logAdminAction = async (adminId, action, targetType = null, targetId = null, details = null, req = null) => {
     try {
@@ -237,9 +318,12 @@ module.exports = {
     generateToken,
     verifyToken,
     authenticateUser,
+    authenticateToken: authenticateUser, // Alias for compatibility
     authenticateAdmin,
     checkPermission,
     requireSuperAdmin,
+    requireMasterAdmin,
+    canManageAdmin,
     logAdminAction,
     optionalAuth
 };

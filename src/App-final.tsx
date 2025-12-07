@@ -28,6 +28,8 @@ import PaymentHistory from "./pages/PaymentHistory";
 import Shop from "./pages/Shop";
 import ProductDetail from "./pages/ProductDetail";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
+import RenewListing from "./pages/RenewListing";
+import AdminRenewals from "./components/admin/AdminRenewals";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -50,9 +52,12 @@ const App = () => {
                 <Route path="/contact" element={<Contact />} />
                 <Route path="/search" element={<Search />} />
                 <Route path="/rent" element={<RentAds />} />
+                <Route path="/rent/:id" element={<ListingDetail />} />
                 <Route path="/sale" element={<SaleAds />} />
+                <Route path="/sale/:id" element={<ListingDetail />} />
                 <Route path="/post-ad" element={<PostAd />} />
                 <Route path="/dashboard" element={<UserDashboard />} />
+                <Route path="/dashboard/renew/:id" element={<RenewListing />} />
                 <Route path="/listing/:id" element={<ListingDetail />} />
                 <Route path="/make-featured" element={<MakeFeatured />} />
                 <Route path="/payment/success" element={<PaymentSuccess />} />
@@ -68,6 +73,7 @@ const App = () => {
                 <Route path="/privacy" element={<PrivacyPolicy />} />
                 <Route path="/admin" element={<Admin />} />
                 <Route path="/admin/login" element={<AdminLogin />} />
+                <Route path="/admin/renewals" element={<AdminRenewals />} />
                 <Route path="/auth" element={<Auth />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>

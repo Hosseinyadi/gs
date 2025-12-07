@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>پاک کردن کش و بارگذاری مجدد</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 3rem;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid white;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 2rem auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .status {
+            font-size: 1.2rem;
+            margin-top: 1rem;
+        }
+        .success {
+            color: #4ade80;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 پاک کردن کش</h1>
+        <div class="spinner"></div>
+        <div class="status" id="status">در حال پاک کردن کش...</div>
+    </div>
+
+    <script>
+        (async function() {
+            const statusEl = document.getElementById('status');
+            
+            try {
+                // 1. Clear localStorage
+                statusEl.textContent = '📦 پاک کردن localStorage...';
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                const authToken = localStorage.getItem('auth_token');
+                const adminToken = localStorage.getItem('admin_token');
+                localStorage.clear();
+                if (authToken) localStorage.setItem('auth_token', authToken);
+                if (adminToken) localStorage.setItem('admin_token', adminToken);
+                localStorage.setItem('app_version', '2.4.0');
+                
+                // 2. Clear sessionStorage
+                statusEl.textContent = '🗂️ پاک کردن sessionStorage...';
+                await new Promise(resolve => setTimeout(resolve, 500));
+                sessionStorage.clear();
+                
+                // 3. Clear Service Worker Cache
+                if ('caches' in window) {
+                    statusEl.textContent = '🔧 پاک کردن Service Worker Cache...';
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    const names = await caches.keys();
+                    await Promise.all(names.map(name => caches.delete(name)));
+                }
+                
+                // 4. Unregister Service Workers
+                if ('serviceWorker' in navigator) {
+                    statusEl.textContent = '⚙️ حذف Service Workers...';
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    await Promise.all(registrations.map(reg => reg.unregister()));
+                }
+                
+                // 5. Success
+                statusEl.innerHTML = '<span class="success">✅ کش با موفقیت پاک شد!</span>';
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // 6. Redirect
+                statusEl.textContent = '🚀 در حال انتقال به صفحه اصلی...';
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                window.location.href = 'http://localhost:5173';
+                
+            } catch (error) {
+                statusEl.innerHTML = '<span style="color: #ef4444;">❌ خطا: ' + error.message + '</span>';
+                console.error('Error clearing cache:', error);
+            }
+        })();
+    </script>
+</body>
+</html>

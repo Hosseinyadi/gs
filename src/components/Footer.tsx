@@ -1,4 +1,5 @@
 import { Phone, Mail, MapPin, Clock, Instagram, MessageCircle, Linkedin } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Footer = () => {
   return (
@@ -48,21 +49,21 @@ const Footer = () => {
           <div className="space-y-4">
             <h4 className="text-lg font-bold">لینک‌های مفید</h4>
             <div className="space-y-2">
-              <a href="/about" className="block text-gray-300 hover:text-primary transition-colors">
+              <Link to="/about" className="block text-gray-300 hover:text-primary transition-colors">
                 درباره ما
-              </a>
-              <a href="/faq" className="block text-gray-300 hover:text-primary transition-colors">
+              </Link>
+              <Link to="/faq" className="block text-gray-300 hover:text-primary transition-colors">
                 سوالات متداول
-              </a>
-              <a href="/privacy" className="block text-gray-300 hover:text-primary transition-colors">
+              </Link>
+              <Link to="/privacy-policy" className="block text-gray-300 hover:text-primary transition-colors">
                 حریم خصوصی
-              </a>
-              <a href="/terms" className="block text-gray-300 hover:text-primary transition-colors">
+              </Link>
+              <Link to="/terms" className="block text-gray-300 hover:text-primary transition-colors">
                 قوانین و مقررات
-              </a>
-              <a href="/help" className="block text-gray-300 hover:text-primary transition-colors">
+              </Link>
+              <Link to="/help" className="block text-gray-300 hover:text-primary transition-colors">
                 راهنمای سایت
-              </a>
+              </Link>
             </div>
           </div>
 

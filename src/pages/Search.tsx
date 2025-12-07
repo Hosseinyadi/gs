@@ -6,17 +6,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, Phone, Clock, Search as SearchIcon, SlidersHorizontal } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import apiService from "@/services/api";
 
 const Search = () => {
-  const [searchQuery, setSearchQuery] = useState('');
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [selectedType, setSelectedType] = useState('all');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedProvince, setSelectedProvince] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(1);
+
+  // Load initial values from URL params
+  useEffect(() => {
+    const q = searchParams.get('q');
+    if (q) setSearchQuery(q);
+  }, [searchParams]);
 
   const { data: categoriesData } = useQuery({
     queryKey: ['categories'],
@@ -31,7 +40,7 @@ const Search = () => {
   const { data: adsData, isLoading } = useQuery({
     queryKey: ['ads', { searchQuery, selectedType, selectedCategory, selectedProvince, page }],
     queryFn: () => apiService.getListings({
-      type: selectedType !== 'all' ? selectedType : undefined,
+      type: selectedType !== 'all' ? (selectedType as 'rent' | 'sale') : undefined,
       category: selectedCategory !== 'all' ? parseInt(selectedCategory) : undefined,
       search: searchQuery,
       page,
@@ -40,7 +49,7 @@ const Search = () => {
   });
 
   const items = adsData?.data?.listings ?? [];
-  const total = adsData?.data?.pagination?.total_items ?? 0;
+  const total = (adsData?.data?.pagination as any)?.total_items ?? (adsData?.data?.pagination?.total ?? 0);
   const hasNoResults = !isLoading && items.length === 0;
 
   return (
@@ -166,7 +175,11 @@ const Search = () => {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {items.map((item: any) => (
-                  <Card key={item.id} className="card-warm group cursor-pointer hover:-translate-y-2 transition-all duration-300">
+                  <Card 
+                  key={item.id} 
+                  className="card-warm group cursor-pointer hover:-translate-y-2 transition-all duration-300"
+                  onClick={() => navigate(`/${item.ad_type || item.type}/${item.id}`)}
+                >
                     <CardHeader className="p-0">
                       <div className="relative overflow-hidden rounded-t-xl">
                         {Array.isArray(item.images) && item.images[0] && (
@@ -219,7 +232,10 @@ const Search = () => {
                     </CardContent>
 
                     <CardFooter className="p-6 pt-0 space-x-2 space-x-reverse">
-                      <Button className="flex-1 btn-secondary">
+                      <Button 
+                        className="flex-1 btn-secondary"
+                        onClick={() => navigate(`/${item.ad_type || item.type}/${item.id}`)}
+                      >
                         مشاهده جزئیات
                       </Button>
                       <Button variant="outline" size="sm" className="px-3">

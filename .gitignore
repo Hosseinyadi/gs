@@ -65,3 +65,7 @@ backups/
 # Test
 test-results/
 playwright-report/
+
+
+.windsurf/rules/kluster-code-verify.md
+.kluster

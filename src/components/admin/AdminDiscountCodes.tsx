@@ -19,16 +19,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import PersianDatePicker from "@/components/ui/PersianDatePicker";
+import { persianStringToDate } from "@/utils/persianDate";
 import {
   Tag,
   Plus,
-  Edit,
   ToggleLeft,
   ToggleRight,
   TrendingUp,
   Users,
-  DollarSign,
-  Calendar
+  Calendar,
+  Loader2
 } from "lucide-react";
 
 interface DiscountCode {
@@ -50,11 +51,20 @@ interface DiscountCode {
   created_by_username?: string;
 }
 
+interface Stats {
+  total_codes: number;
+  active_codes: number;
+  total_uses: number;
+  expired_codes: number;
+}
+
 const AdminDiscountCodes = () => {
   const [codes, setCodes] = useState<DiscountCode[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [creating, setCreating] = useState(false);
+
 
   // Form state
   const [formData, setFormData] = useState({
@@ -66,9 +76,15 @@ const AdminDiscountCodes = () => {
     min_amount: '',
     max_uses: '',
     max_uses_per_user: '1',
-    expiry_date: '',
-    applicable_plans: []
+    expiry_date: '', // فرمت فارسی: 1403/08/15
+    applicable_plans: [] as number[]
   });
+
+  const API_BASE = import.meta.env.VITE_API_URL || '/api';
+
+  const getToken = () => {
+    return localStorage.getItem('admin_token') || localStorage.getItem('auth_token');
+  };
 
   useEffect(() => {
     loadCodes();
@@ -77,16 +93,19 @@ const AdminDiscountCodes = () => {
 
   const loadCodes = async () => {
     try {
-      const token = localStorage.getItem('adminToken');
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/admin/discount-codes`, {
+      const token = getToken();
+      const response = await fetch(`${API_BASE}/admin/discount-codes`, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
       });
 
       const data = await response.json();
       if (data.success) {
-        setCodes(data.data);
+        setCodes(data.data || []);
+      } else {
+        toast.error(data.message || 'خطا در بارگذاری کدهای تخفیف');
       }
     } catch (error) {
       console.error('Error loading codes:', error);
@@ -98,10 +117,11 @@ const AdminDiscountCodes = () => {
 
   const loadStats = async () => {
     try {
-      const token = localStorage.getItem('adminToken');
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/admin/discount-codes/stats`, {
+      const token = getToken();
+      const response = await fetch(`${API_BASE}/admin/discount-codes/stats`, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
       });
 
@@ -115,21 +135,45 @@ const AdminDiscountCodes = () => {
   };
 
   const handleCreateCode = async () => {
+    if (!formData.code.trim()) {
+      toast.error('کد تخفیف الزامی است');
+      return;
+    }
+    if (!formData.discount_value) {
+      toast.error('مقدار تخفیف الزامی است');
+      return;
+    }
+
+    setCreating(true);
     try {
-      const token = localStorage.getItem('adminToken');
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/admin/discount-codes`, {
+      const token = getToken();
+      
+      // تبدیل تاریخ فارسی به میلادی
+      let expiryDateISO = null;
+      if (formData.expiry_date) {
+        const gregorianDate = persianStringToDate(formData.expiry_date);
+        if (gregorianDate) {
+          expiryDateISO = gregorianDate.toISOString();
+        }
+      }
+
+      const response = await fetch(`${API_BASE}/admin/discount-codes`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          ...formData,
+          code: formData.code.toUpperCase(),
+          description: formData.description,
+          discount_type: formData.discount_type,
           discount_value: parseInt(formData.discount_value),
           max_discount: formData.max_discount ? parseInt(formData.max_discount) : null,
           min_amount: formData.min_amount ? parseInt(formData.min_amount) : null,
           max_uses: formData.max_uses ? parseInt(formData.max_uses) : null,
-          max_uses_per_user: parseInt(formData.max_uses_per_user)
+          max_uses_per_user: parseInt(formData.max_uses_per_user),
+          expiry_date: expiryDateISO,
+          applicable_plans: formData.applicable_plans
         })
       });
 
@@ -153,18 +197,20 @@ const AdminDiscountCodes = () => {
           applicable_plans: []
         });
       } else {
-        toast.error(data.error?.message || 'خطا در ایجاد کد تخفیف');
+        toast.error(data.message || data.error?.message || 'خطا در ایجاد کد تخفیف');
       }
     } catch (error) {
       console.error('Error creating code:', error);
       toast.error('خطا در ایجاد کد تخفیف');
+    } finally {
+      setCreating(false);
     }
   };
 
   const handleToggleActive = async (id: number, currentStatus: boolean) => {
     try {
-      const token = localStorage.getItem('adminToken');
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/admin/discount-codes/${id}`, {
+      const token = getToken();
+      const response = await fetch(`${API_BASE}/admin/discount-codes/${id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -179,6 +225,8 @@ const AdminDiscountCodes = () => {
       if (data.success) {
         toast.success(currentStatus ? 'کد تخفیف غیرفعال شد' : 'کد تخفیف فعال شد');
         loadCodes();
+      } else {
+        toast.error(data.message || 'خطا در تغییر وضعیت');
       }
     } catch (error) {
       console.error('Error toggling code:', error);
@@ -196,18 +244,19 @@ const AdminDiscountCodes = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
 
+
   return (
-    <div className="container mx-auto p-6">
-      <div className="flex justify-between items-center mb-6">
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">مدیریت کدهای تخفیف</h1>
-          <p className="text-gray-600 mt-1">ایجاد و مدیریت کدهای تخفیف</p>
+          <h2 className="text-2xl font-bold">مدیریت کدهای تخفیف</h2>
+          <p className="text-muted-foreground">ایجاد و مدیریت کدهای تخفیف</p>
         </div>
         <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
           <DialogTrigger asChild>
@@ -227,8 +276,9 @@ const AdminDiscountCodes = () => {
                   <Input
                     value={formData.code}
                     onChange={(e) => setFormData({...formData, code: e.target.value.toUpperCase()})}
-                    placeholder="SUMMER2024"
+                    placeholder="SUMMER1403"
                     className="font-mono"
+                    dir="ltr"
                   />
                 </div>
                 <div>
@@ -267,6 +317,7 @@ const AdminDiscountCodes = () => {
                     value={formData.discount_value}
                     onChange={(e) => setFormData({...formData, discount_value: e.target.value})}
                     placeholder={formData.discount_type === 'percentage' ? '10' : '50000'}
+                    dir="ltr"
                   />
                 </div>
                 {formData.discount_type === 'percentage' && (
@@ -277,6 +328,7 @@ const AdminDiscountCodes = () => {
                       value={formData.max_discount}
                       onChange={(e) => setFormData({...formData, max_discount: e.target.value})}
                       placeholder="100000"
+                      dir="ltr"
                     />
                   </div>
                 )}
@@ -290,14 +342,15 @@ const AdminDiscountCodes = () => {
                     value={formData.min_amount}
                     onChange={(e) => setFormData({...formData, min_amount: e.target.value})}
                     placeholder="100000"
+                    dir="ltr"
                   />
                 </div>
                 <div>
-                  <Label>تاریخ انقضا</Label>
-                  <Input
-                    type="datetime-local"
+                  <PersianDatePicker
+                    label="تاریخ انقضا"
                     value={formData.expiry_date}
-                    onChange={(e) => setFormData({...formData, expiry_date: e.target.value})}
+                    onChange={(value) => setFormData({...formData, expiry_date: value})}
+                    placeholder="انتخاب تاریخ انقضا"
                   />
                 </div>
               </div>
@@ -310,6 +363,7 @@ const AdminDiscountCodes = () => {
                     value={formData.max_uses}
                     onChange={(e) => setFormData({...formData, max_uses: e.target.value})}
                     placeholder="100"
+                    dir="ltr"
                   />
                 </div>
                 <div>
@@ -319,12 +373,20 @@ const AdminDiscountCodes = () => {
                     value={formData.max_uses_per_user}
                     onChange={(e) => setFormData({...formData, max_uses_per_user: e.target.value})}
                     placeholder="1"
+                    dir="ltr"
                   />
                 </div>
               </div>
 
-              <Button onClick={handleCreateCode} className="w-full">
-                ایجاد کد تخفیف
+              <Button onClick={handleCreateCode} className="w-full" disabled={creating}>
+                {creating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+                    در حال ایجاد...
+                  </>
+                ) : (
+                  'ایجاد کد تخفیف'
+                )}
               </Button>
             </div>
           </DialogContent>
@@ -333,12 +395,12 @@ const AdminDiscountCodes = () => {
 
       {/* Stats Cards */}
       {stats && (
-        <div className="grid grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">کل کدها</p>
+                  <p className="text-sm text-muted-foreground">کل کدها</p>
                   <p className="text-2xl font-bold">{stats.total_codes}</p>
                 </div>
                 <Tag className="w-8 h-8 text-blue-500" />
@@ -349,7 +411,7 @@ const AdminDiscountCodes = () => {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">کدهای فعال</p>
+                  <p className="text-sm text-muted-foreground">کدهای فعال</p>
                   <p className="text-2xl font-bold text-green-600">{stats.active_codes}</p>
                 </div>
                 <TrendingUp className="w-8 h-8 text-green-500" />
@@ -360,7 +422,7 @@ const AdminDiscountCodes = () => {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">کل استفاده</p>
+                  <p className="text-sm text-muted-foreground">کل استفاده</p>
                   <p className="text-2xl font-bold">{stats.total_uses}</p>
                 </div>
                 <Users className="w-8 h-8 text-purple-500" />
@@ -371,7 +433,7 @@ const AdminDiscountCodes = () => {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">منقضی شده</p>
+                  <p className="text-sm text-muted-foreground">منقضی شده</p>
                   <p className="text-2xl font-bold text-red-600">{stats.expired_codes}</p>
                 </div>
                 <Calendar className="w-8 h-8 text-red-500" />
@@ -387,53 +449,60 @@ const AdminDiscountCodes = () => {
           <CardTitle>لیست کدهای تخفیف</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {codes.map((code) => (
-              <div
-                key={code.id}
-                className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
-              >
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <span className="font-mono font-bold text-lg">{code.code}</span>
-                    <Badge variant={code.is_active ? "default" : "secondary"}>
-                      {code.is_active ? 'فعال' : 'غیرفعال'}
-                    </Badge>
-                    <Badge variant="outline">
-                      {code.discount_type === 'percentage' 
-                        ? `${code.discount_value}%` 
-                        : `${formatPrice(code.discount_value)} تومان`}
-                    </Badge>
+          {codes.length === 0 ? (
+            <div className="text-center py-12">
+              <Tag className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <p className="text-muted-foreground">هیچ کد تخفیفی ثبت نشده است</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {codes.map((code) => (
+                <div
+                  key={code.id}
+                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="font-mono font-bold text-lg">{code.code}</span>
+                      <Badge variant={code.is_active ? "default" : "secondary"}>
+                        {code.is_active ? 'فعال' : 'غیرفعال'}
+                      </Badge>
+                      <Badge variant="outline">
+                        {code.discount_type === 'percentage' 
+                          ? `${code.discount_value}%` 
+                          : `${formatPrice(code.discount_value)} تومان`}
+                      </Badge>
+                    </div>
+                    {code.description && (
+                      <p className="text-sm text-muted-foreground mb-2">{code.description}</p>
+                    )}
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <span>استفاده: {code.actual_usage || 0} / {code.max_uses || '∞'}</span>
+                      {code.min_amount && (
+                        <span>حداقل: {formatPrice(code.min_amount)} تومان</span>
+                      )}
+                      {code.expiry_date && (
+                        <span>انقضا: {formatDate(code.expiry_date)}</span>
+                      )}
+                    </div>
                   </div>
-                  {code.description && (
-                    <p className="text-sm text-gray-600 mb-2">{code.description}</p>
-                  )}
-                  <div className="flex items-center gap-4 text-sm text-gray-500">
-                    <span>استفاده: {code.actual_usage} / {code.max_uses || '∞'}</span>
-                    {code.min_amount && (
-                      <span>حداقل: {formatPrice(code.min_amount)} تومان</span>
-                    )}
-                    {code.expiry_date && (
-                      <span>انقضا: {formatDate(code.expiry_date)}</span>
-                    )}
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleToggleActive(code.id, code.is_active)}
+                    >
+                      {code.is_active ? (
+                        <ToggleRight className="w-6 h-6 text-green-600" />
+                      ) : (
+                        <ToggleLeft className="w-6 h-6 text-gray-400" />
+                      )}
+                    </Button>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleToggleActive(code.id, code.is_active)}
-                  >
-                    {code.is_active ? (
-                      <ToggleRight className="w-5 h-5 text-green-600" />
-                    ) : (
-                      <ToggleLeft className="w-5 h-5 text-gray-400" />
-                    )}
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

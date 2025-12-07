@@ -25,7 +25,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
 
   // For regular user routes
   if (!isAuthenticated) {
-    return <Navigate to="/auth" state={{ from: location.pathname }} replace />;
+    return <Navigate to="/auth" state={{ from: { pathname: location.pathname, search: location.search, state: location.state } }} replace />;
   }
 
   return <>{children}</>;

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { CreditCard, Save, Eye, EyeOff, Shield } from "lucide-react";
+import { CreditCard, Save, Shield, Phone, MessageCircle } from "lucide-react";
 import adminApi from "@/services/admin-api";
 
 interface PaymentSettings {
@@ -13,6 +13,7 @@ interface PaymentSettings {
   bank_name: string;
   price_per_day: number;
   payment_window_min: number;
+  support_phone: string;
 }
 
 function AdminPaymentSettings() {
@@ -21,11 +22,11 @@ function AdminPaymentSettings() {
     cardholder_name: '',
     bank_name: '',
     price_per_day: 50000,
-    payment_window_min: 30
+    payment_window_min: 30,
+    support_phone: ''
   });
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [showCardNumber, setShowCardNumber] = useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -46,7 +47,8 @@ function AdminPaymentSettings() {
           cardholder_name: settingsMap.cardholder_name || '',
           bank_name: settingsMap.bank_name || '',
           price_per_day: parseInt(settingsMap.price_per_day) || 50000,
-          payment_window_min: parseInt(settingsMap.payment_window_min) || 30
+          payment_window_min: parseInt(settingsMap.payment_window_min) || 30,
+          support_phone: settingsMap.support_phone || ''
         });
       }
     } catch (error) {
@@ -77,7 +79,8 @@ function AdminPaymentSettings() {
         { key: 'cardholder_name', value: settings.cardholder_name },
         { key: 'bank_name', value: settings.bank_name },
         { key: 'price_per_day', value: settings.price_per_day.toString() },
-        { key: 'payment_window_min', value: settings.payment_window_min.toString() }
+        { key: 'payment_window_min', value: settings.payment_window_min.toString() },
+        { key: 'support_phone', value: settings.support_phone }
       ];
 
       const response = await adminApi.bulkUpdateSettings(settingsToUpdate);
@@ -95,30 +98,34 @@ function AdminPaymentSettings() {
     }
   };
 
-  const formatCardNumber = (value: string) => {
+  // فرمت شماره کارت: 1234-5678-9012-3456
+  const formatCardNumber = (value: string): string => {
     const cleaned = value.replace(/\D/g, '');
-    const formatted = cleaned.replace(/(\d{4})(?=\d)/g, '$1-');
-    return formatted;
+    const limited = cleaned.substring(0, 16);
+    // اضافه کردن خط تیره هر 4 رقم
+    const parts = [];
+    for (let i = 0; i < limited.length; i += 4) {
+      parts.push(limited.substring(i, i + 4));
+    }
+    return parts.join('-');
   };
 
   const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    const formatted = formatCardNumber(value);
-    if (formatted.replace(/\D/g, '').length <= 16) {
+    const cleaned = value.replace(/\D/g, '');
+    if (cleaned.length <= 16) {
+      const formatted = formatCardNumber(cleaned);
       setSettings(prev => ({ ...prev, card_number: formatted }));
     }
   };
 
-  const maskCardNumber = (cardNumber: string) => {
-    if (!cardNumber) return '';
-    const cleaned = cardNumber.replace(/\D/g, '');
-    if (cleaned.length <= 8) return cardNumber; // Don't mask if 8 digits or less
-    
-    const first4 = cleaned.substring(0, 4);
-    const last4 = cleaned.substring(cleaned.length - 4);
-    const middle = '*'.repeat(cleaned.length - 8);
-    
-    return formatCardNumber(first4 + middle + last4);
+  // فرمت شماره تلفن: 09123456789
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    const cleaned = value.replace(/\D/g, '');
+    if (cleaned.length <= 11) {
+      setSettings(prev => ({ ...prev, support_phone: cleaned }));
+    }
   };
 
   if (loading) {
@@ -157,24 +164,17 @@ function AdminPaymentSettings() {
           <div className="space-y-4">
             <div>
               <Label htmlFor="card_number">شماره کارت *</Label>
-              <div className="relative">
-                <Input
-                  id="card_number"
-                  type={showCardNumber ? "text" : "password"}
-                  value={showCardNumber ? settings.card_number : maskCardNumber(settings.card_number)}
-                  onChange={handleCardNumberChange}
-                  placeholder="0000-0000-0000-0000"
-                  className="pr-10"
-                  dir="ltr"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowCardNumber(!showCardNumber)}
-                  className="absolute left-3 top-3 text-gray-400 hover:text-gray-600"
-                >
-                  {showCardNumber ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
+              <Input
+                id="card_number"
+                type="text"
+                value={settings.card_number}
+                onChange={handleCardNumberChange}
+                placeholder="1234-5678-9012-3456"
+                className="font-mono text-lg tracking-wider text-left"
+                style={{ direction: 'ltr', textAlign: 'left' }}
+                maxLength={19}
+              />
+              <p className="text-xs text-gray-500 mt-1">شماره کارت 16 رقمی بانکی</p>
             </div>
 
             <div>
@@ -195,6 +195,24 @@ function AdminPaymentSettings() {
                 onChange={(e) => setSettings(prev => ({ ...prev, bank_name: e.target.value }))}
                 placeholder="بانک ملی ایران"
               />
+            </div>
+
+            <div>
+              <Label htmlFor="support_phone" className="flex items-center gap-2">
+                <MessageCircle className="w-4 h-4 text-green-500" />
+                شماره پشتیبانی واتساپ
+              </Label>
+              <Input
+                id="support_phone"
+                type="text"
+                value={settings.support_phone}
+                onChange={handlePhoneChange}
+                placeholder="09123456789"
+                className="font-mono text-lg text-left"
+                style={{ direction: 'ltr', textAlign: 'left' }}
+                maxLength={11}
+              />
+              <p className="text-xs text-gray-500 mt-1">شماره موبایل برای پشتیبانی واتساپ (مثال: 09123456789)</p>
             </div>
           </div>
 
@@ -224,12 +242,33 @@ function AdminPaymentSettings() {
 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <h4 className="font-medium text-blue-800 mb-2">پیش‌نمایش اطلاعات پرداخت</h4>
-              <div className="text-sm text-blue-700 space-y-1">
-                <p><strong>کارت:</strong> {maskCardNumber(settings.card_number) || 'تنظیم نشده'}</p>
+              <div className="text-sm text-blue-700 space-y-2">
+                <p className="flex items-center gap-2">
+                  <CreditCard className="w-4 h-4" />
+                  <strong>کارت:</strong> 
+                  <span className="font-mono" style={{ direction: 'ltr' }}>
+                    {settings.card_number || 'تنظیم نشده'}
+                  </span>
+                </p>
                 <p><strong>دارنده:</strong> {settings.cardholder_name || 'تنظیم نشده'}</p>
                 <p><strong>بانک:</strong> {settings.bank_name || 'تنظیم نشده'}</p>
                 <p><strong>قیمت روزانه:</strong> {settings.price_per_day.toLocaleString('fa-IR')} تومان</p>
                 <p><strong>مهلت پرداخت:</strong> {settings.payment_window_min} دقیقه</p>
+                {settings.support_phone && (
+                  <p className="flex items-center gap-2">
+                    <MessageCircle className="w-4 h-4 text-green-500" />
+                    <strong>پشتیبانی:</strong>
+                    <a 
+                      href={`https://wa.me/98${settings.support_phone.substring(1)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-green-600 hover:underline font-mono"
+                      style={{ direction: 'ltr' }}
+                    >
+                      {settings.support_phone}
+                    </a>
+                  </p>
+                )}
               </div>
             </div>
           </div>

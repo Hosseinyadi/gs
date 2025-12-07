@@ -2,7 +2,8 @@
 // Replaces Supabase with custom API calls
 // بهینه شده برای تمام مرورگرها (Chrome, Firefox, Safari, Edge, WebKit)
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+// در development از proxy استفاده می‌کنیم، در production از URL کامل
+const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '/api' : 'http://localhost:8080/api');
 
 // Polyfill برای AbortController در مرورگرهای قدیمی‌تر
 if (typeof AbortController === 'undefined') {
@@ -41,6 +42,9 @@ interface Listing {
   user_id: number;
   images?: string[];
   location: string;
+  province_id?: number;
+  city_id?: number;
+  neighborhood_id?: number;
   condition?: string;
   year?: number;
   brand?: string;
@@ -158,7 +162,7 @@ class ApiService {
         },
         // اضافه کردن تنظیمات برای سازگاری با تمام مرورگرها
         mode: 'cors', // فعال‌سازی CORS
-        credentials: 'include', // ارسال کوکی‌ها
+        credentials: 'same-origin', // تغییر از include به same-origin برای جلوگیری از مشکلات CORS
         cache: 'no-cache', // جلوگیری از مشکلات کش در Edge
         redirect: 'follow', // پیروی از redirect ها
       };
@@ -191,9 +195,15 @@ class ApiService {
         let data: ApiResponse<T>;
         
         try {
-          data = JSON.parse(text);
+          // اگر متن خالی باشد، یک پاسخ پیش‌فرض برگردان
+          if (!text || text.trim() === '') {
+            console.warn('⚠️ Empty response body');
+            data = { success: false, message: 'پاسخ خالی از سرور' };
+          } else {
+            data = JSON.parse(text);
+          }
         } catch (parseError) {
-          console.error('❌ JSON Parse Error:', parseError, 'Text:', text);
+          console.error('❌ JSON Parse Error:', parseError, 'Text:', text?.substring(0, 200));
           throw new Error('خطا در پردازش پاسخ سرور');
         }
         
@@ -367,6 +377,9 @@ class ApiService {
     category_id: number;
     images?: string[];
     location: string;
+    province_id?: number;
+    city_id?: number;
+    neighborhood_id?: number;
     condition?: string;
     year?: number;
     brand?: string;
@@ -386,10 +399,15 @@ class ApiService {
     });
   }
 
-  async deleteListing(id: string | number): Promise<ApiResponse> {
+  async deleteListing(id: string | number, reason?: string, reasonText?: string): Promise<ApiResponse> {
     return this.request(`/listings/${id}`, {
       method: 'DELETE',
+      body: JSON.stringify({ reason, reason_text: reasonText }),
     });
+  }
+
+  async getDeletedListings(): Promise<ApiResponse<{ listings: Listing[] }>> {
+    return this.request('/listings/deleted/my-listings');
   }
 
   async getCategories(): Promise<ApiResponse<{ categories: Category[] }>> {
@@ -524,6 +542,10 @@ class ApiService {
 
   async getCities(provinceId: number): Promise<ApiResponse<{ cities: { id: number; name: string; province_id: number }[] }>> {
     return this.request(`/locations/cities/${provinceId}`);
+  }
+
+  async getNeighborhoods(cityId: number): Promise<ApiResponse<{ neighborhoods: { id: number; name: string; city_id: number }[] }>> {
+    return this.request(`/locations/neighborhoods/${cityId}`);
   }
 
   // Admin Static Pages

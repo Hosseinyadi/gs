@@ -27,6 +27,7 @@ import ReviewsSection from "@/components/ReviewsSection";
 import apiService from "@/services/api";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { normalizeIranPhoneLocal } from "@/utils/security";
 
 interface Listing {
   id: number;
@@ -44,6 +45,7 @@ interface Listing {
   view_count: number;
   created_at: string;
   is_favorite?: boolean;
+  is_featured?: boolean;
   user_name?: string;
   user_phone?: string;
   user_id?: number;
@@ -61,6 +63,7 @@ const ListingDetail = () => {
   const [showPhone, setShowPhone] = useState(false);
 
   useEffect(() => {
+    console.log('🔍 ListingDetail mounted, id:', id);
     if (id) {
       loadListing(parseInt(id));
     }
@@ -68,8 +71,10 @@ const ListingDetail = () => {
 
   const loadListing = async (listingId: number) => {
     setLoading(true);
+    console.log('🔄 Loading listing:', listingId);
     try {
       const response = await apiService.getListingById(listingId);
+      console.log('📦 API Response:', response);
       if (response.success && response.data) {
         // Handle both response formats: data.listing or data directly
         const listingData = (response.data as any).listing || response.data;
@@ -193,6 +198,8 @@ const ListingDetail = () => {
       </div>
     );
   }
+
+  const displayPhone = normalizeIranPhoneLocal(listing.user_phone);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -334,6 +341,32 @@ const ListingDetail = () => {
                 <p className="text-gray-700 leading-relaxed whitespace-pre-line">
                   {listing.description}
                 </p>
+                
+                {/* Tags Display */}
+                {listing.specifications?.tags && (() => {
+                  try {
+                    const tags = typeof listing.specifications.tags === 'string' 
+                      ? JSON.parse(listing.specifications.tags) 
+                      : listing.specifications.tags;
+                    if (Array.isArray(tags) && tags.length > 0) {
+                      return (
+                        <div className="mt-6 pt-6 border-t">
+                          <h3 className="text-sm font-semibold text-muted-foreground mb-3">تگ‌ها:</h3>
+                          <div className="flex flex-wrap gap-2">
+                            {tags.map((tag: string) => (
+                              <Badge key={tag} variant="outline" className="text-sm">
+                                {tag}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  } catch {
+                    return null;
+                  }
+                })()}
               </CardContent>
             </Card>
 
@@ -374,7 +407,7 @@ const ListingDetail = () => {
                     <span className="font-semibold">{listing.category_name}</span>
                   </div>
                   <div className="flex justify-between py-3 border-b">
-                    <span className="text-muted-foreground">موقعیت:</span>
+                    <span className="text-muted-foreground">استان:</span>
                     <span className="font-semibold">{listing.location}</span>
                   </div>
                 </div>
@@ -443,7 +476,7 @@ const ListingDetail = () => {
 
                   <Separator />
 
-                  {listing.user_phone ? (
+                  {displayPhone ? (
                     <div className="space-y-3">
                       {showPhone ? (
                         <div className="flex items-center gap-3 p-4 bg-primary/10 rounded-lg">
@@ -451,7 +484,7 @@ const ListingDetail = () => {
                           <div className="flex-1">
                             <div className="text-sm text-muted-foreground">شماره تماس</div>
                             <div className="font-bold text-lg direction-ltr text-left">
-                              {listing.user_phone}
+                              {displayPhone}
                             </div>
                           </div>
                         </div>
@@ -469,7 +502,10 @@ const ListingDetail = () => {
                       <Button 
                         variant="outline" 
                         className="w-full"
-                        onClick={() => window.open(`tel:${listing.user_phone}`)}
+                        onClick={() => {
+                          const tel = displayPhone.replace(/\s+/g, "");
+                          window.open(`tel:${tel}`);
+                        }}
                       >
                         تماس تلفنی
                       </Button>

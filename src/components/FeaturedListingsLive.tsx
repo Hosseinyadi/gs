@@ -31,11 +31,31 @@ const FeaturedListingsLive = () => {
   const loadFeaturedListings = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/listings/featured`);
-      const data = await response.json();
+      // First try to get home featured listings
+      let response = await fetch(`${import.meta.env.VITE_API_URL}/listings/home-featured`);
+      let data = await response.json();
 
-      if (data.success) {
-        setListings(data.data || []);
+      if (data.success && data.data && data.data.length > 0) {
+        // Sort by newest first (home_featured_at or created_at)
+        const sortedListings = data.data.sort((a: FeaturedListing, b: FeaturedListing) => {
+          const dateA = new Date(a.created_at).getTime();
+          const dateB = new Date(b.created_at).getTime();
+          return dateB - dateA; // Newest first
+        });
+        setListings(sortedListings);
+      } else {
+        // Fallback to regular featured listings
+        response = await fetch(`${import.meta.env.VITE_API_URL}/listings/featured`);
+        data = await response.json();
+        if (data.success) {
+          // Sort by newest first
+          const sortedListings = (data.data || []).sort((a: FeaturedListing, b: FeaturedListing) => {
+            const dateA = new Date(a.created_at).getTime();
+            const dateB = new Date(b.created_at).getTime();
+            return dateB - dateA; // Newest first
+          });
+          setListings(sortedListings);
+        }
       }
     } catch (error) {
       console.error('Error loading featured listings:', error);

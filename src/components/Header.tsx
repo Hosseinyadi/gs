@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Menu, X, User, LogOut, Wrench } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import NotificationBell from "./NotificationBell";
+import NotificationBell from "./user/NotificationBell";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -59,15 +59,15 @@ const Header = () => {
             <NotificationBell />
             {isAuthenticated ? (
               <>
-                <Link to="/dashboard">
-                  <Button variant="ghost" size="sm" className="text-sm">
-                    <User className="w-4 h-4 ml-2" />
-                    {user?.name || 'پنل کاربری'}
+                <Link to="/post-ad">
+                  <Button size="sm" className="text-sm">
+                    ثبت آگهی
                   </Button>
                 </Link>
-                <Link to="/seller">
+                <Link to="/dashboard">
                   <Button variant="outline" size="sm" className="text-sm">
-                    پنل فروشنده
+                    <User className="w-4 h-4 ml-2" />
+                    {user?.name || 'پنل کاربری'}
                   </Button>
                 </Link>
                 <Button variant="ghost" size="sm" onClick={logout} className="text-sm">
@@ -119,15 +119,15 @@ const Header = () => {
               <div className="pt-2 mt-2 border-t space-y-2">
                 {isAuthenticated ? (
                   <>
-                    <Link to="/dashboard">
-                      <Button variant="ghost" size="sm" className="w-full justify-start text-sm">
-                        <User className="w-4 h-4 ml-2" />
-                        پنل کاربری
+                    <Link to="/post-ad">
+                      <Button size="sm" className="w-full text-sm">
+                        ثبت آگهی
                       </Button>
                     </Link>
-                    <Link to="/seller">
-                      <Button variant="outline" size="sm" className="w-full text-sm">
-                        پنل فروشنده
+                    <Link to="/dashboard">
+                      <Button variant="outline" size="sm" className="w-full justify-start text-sm">
+                        <User className="w-4 h-4 ml-2" />
+                        پنل کاربری
                       </Button>
                     </Link>
                     <Button variant="ghost" size="sm" onClick={logout} className="w-full justify-start text-sm">

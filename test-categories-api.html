@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تست API دسته‌بندی‌ها</title>
+    <style>
+        body {
+            font-family: Tahoma, Arial, sans-serif;
+            padding: 20px;
+            direction: rtl;
+        }
+        .result {
+            background: #f5f5f5;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            white-space: pre-wrap;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <h1>تست API دسته‌بندی‌ها</h1>
+    
+    <button onclick="testCategories()">تست دریافت دسته‌بندی‌ها</button>
+    <button onclick="testCreateListing()">تست ثبت آگهی (نیاز به لاگین)</button>
+    
+    <div id="result"></div>
+
+    <script>
+        const API_URL = 'http://localhost:8080/api';
+        
+        async function testCategories() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<div class="result">در حال بررسی...</div>';
+            
+            try {
+                const response = await fetch(`${API_URL}/listings/categories/all`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.innerHTML = `
+                        <div class="result success">
+                            <h3>✅ موفق!</h3>
+                            <p>تعداد دسته‌بندی‌ها: ${data.data.categories.length}</p>
+                            <pre>${JSON.stringify(data.data.categories, null, 2)}</pre>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="result error">
+                            <h3>❌ خطا!</h3>
+                            <p>${data.message}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="result error">
+                        <h3>❌ خطای شبکه!</h3>
+                        <p>${error.message}</p>
+                        <p>آیا سرور در حال اجرا است؟</p>
+                        <p>URL: ${API_URL}/listings/categories/all</p>
+                    </div>
+                `;
+            }
+        }
+        
+        async function testCreateListing() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<div class="result">در حال بررسی...</div>';
+            
+            const token = localStorage.getItem('token');
+            if (!token) {
+                resultDiv.innerHTML = `
+                    <div class="result error">
+                        <h3>❌ خطا!</h3>
+                        <p>ابتدا باید لاگین کنید</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            const testData = {
+                title: 'تست آگهی',
+                description: 'این یک آگهی تستی است برای بررسی API',
+                price: 1000000,
+                type: 'sale',
+                category_id: 1,
+                location: 'تهران',
+                tags: '["تست"]',
+                images: '[]',
+                specifications: '{}'
+            };
+            
+            try {
+                const response = await fetch(`${API_URL}/listings`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(testData)
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.innerHTML = `
+                        <div class="result success">
+                            <h3>✅ موفق!</h3>
+                            <p>${data.message}</p>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="result error">
+                            <h3>❌ خطا!</h3>
+                            <p>${data.message}</p>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="result error">
+                        <h3>❌ خطای شبکه!</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // تست خودکار هنگام بارگذاری
+        window.onload = () => {
+            testCategories();
+        };
+    </script>
+</body>
+</html>

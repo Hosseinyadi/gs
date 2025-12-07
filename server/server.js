@@ -20,8 +20,11 @@ const discountCodesRoutes = require('./routes/discountCodes');
 const paymentHistoryRoutes = require('./routes/paymentHistory');
 const adminAnalyticsRoutes = require('./routes/adminAnalytics');
 const adminManagementRoutes = require('./routes/adminManagement');
+const citiesRoutes = require('./routes/cities');
+const uploadRoutes = require('./routes/upload');
 const sanitizeInput = require('./middleware/sanitize');
 const { advancedSecurityMiddleware } = require('./middleware/advancedSecurity');
+const { securityMiddleware, csrfProtection } = require('./middleware/securityMiddleware');
 
 // Admin panel routes
 const adminSettingsRoutes = require('./routes/admin-settings');
@@ -163,6 +166,17 @@ app.use(advancedSecurityMiddleware({
     maxDepth: 5 // حداکثر عمق object ها
 }));
 
+// Security middleware - XSS, SQL Injection, Path Traversal protection
+app.use(securityMiddleware({
+    blockOnThreat: false,  // فقط لاگ می‌کنیم، بلاک نمی‌کنیم
+    logThreats: true,
+    sanitize: true,
+    allowHtml: false
+}));
+
+// CSRF Protection
+app.use(csrfProtection);
+
 // Trust proxy for accurate IP addresses
 app.set('trust proxy', 1);
 
@@ -193,7 +207,9 @@ app.use('/api/payments', paymentHistoryRoutes);
 app.use('/api/admin/analytics', adminAnalyticsRoutes);
 app.use('/api/admin/management', adminManagementRoutes);
 app.use('/api/admin/payments', paymentsNewRoutes);
+app.use('/api/admin/hierarchy', require('./routes/adminHierarchy'));
 app.use('/api/user', require('./routes/userLoyalty'));
+app.use('/api/cities', citiesRoutes);
 
 // Admin panel routes
 app.use('/api/admin/settings', adminSettingsRoutes);
@@ -201,6 +217,17 @@ app.use('/api/admin/discounts', adminDiscountsRoutes);
 app.use('/api/admin/reports', adminReportsRoutes);
 app.use('/api/admin/audit', adminAuditRoutes);
 app.use('/api/admin/providers', adminProvidersRoutes);
+app.use('/api/admin/security', require('./routes/adminSecurity'));
+app.use('/api/admin/support', require('./routes/adminSupport'));
+app.use('/api/admin/static-pages', require('./routes/adminStaticPages'));
+app.use('/api/static-pages', require('./routes/staticPages'));
+app.use('/api/upload', uploadRoutes);
+
+// Notifications, Stats, and Renewals routes
+app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/listing-stats', require('./routes/listingStats'));
+app.use('/api/renewals', require('./routes/renewals'));
+app.use('/api/admin/renewals', require('./routes/adminRenewals'));
 
 // Static files for uploaded images
 app.use('/uploads', express.static('uploads'));
@@ -336,6 +363,33 @@ const setupCronJobs = () => {
             console.error('❌ Listing cleanup error:', error);
         }
     }, 60 * 60 * 1000); // Check every hour, but only run at 3 AM
+
+    // Renewal service - check expired listings and send reminders
+    const RenewalService = require('./services/renewalService');
+    const { NotificationService } = require('./services/notificationService');
+    
+    // Run every day at 8 AM to expire old listings and send reminders
+    setInterval(async () => {
+        try {
+            const now = new Date();
+            if (now.getHours() === 8 && now.getMinutes() === 0) {
+                console.log('⏰ Running daily renewal checks...');
+                
+                // منقضی کردن آگهی‌های قدیمی
+                const expireResult = await RenewalService.expireOldListings();
+                console.log(`✅ Expired ${expireResult.expired} listings`);
+                
+                // ارسال یادآوری انقضا
+                const reminderResult = await RenewalService.sendExpiryReminders();
+                console.log(`📧 Sent ${reminderResult.sent} expiry reminders`);
+                
+                // پاکسازی اعلان‌های قدیمی
+                await NotificationService.cleanupOld();
+            }
+        } catch (error) {
+            console.error('❌ Renewal cron error:', error);
+        }
+    }, 60 * 60 * 1000); // Check every hour, but only run at 8 AM
 
     console.log('⏰ Cron jobs scheduled');
 };
