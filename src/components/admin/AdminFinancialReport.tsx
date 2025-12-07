@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import adminApi from "@/services/admin-api";
 import {
   TrendingUp,
   TrendingDown,
@@ -17,113 +16,164 @@ import {
   PieChart
 } from "lucide-react";
 
-interface FinancialStats {
-  totalRevenue: number;
-  monthlyRevenue: number;
-  weeklyRevenue: number;
-  todayRevenue: number;
-  totalPayments: number;
-  pendingPayments: number;
-  approvedPayments: number;
-  rejectedPayments: number;
-  averagePayment: number;
-  growthRate: number;
+interface RevenueByType {
+  type: string;
+  count: number;
+  total_amount: number;
 }
 
-interface DailyRevenue {
-  date: string;
-  amount: number;
-  count: number;
+interface TimelineItem {
+  period: string;
+  transaction_count: number;
+  total_amount: number;
+  type: string;
+}
+
+interface Summary {
+  total_transactions: number;
+  total_revenue: number;
+  avg_transaction: number;
+  min_transaction: number;
+  max_transaction: number;
+}
+
+interface FinancialData {
+  revenue_by_type: RevenueByType[];
+  timeline: TimelineItem[];
+  summary: Summary;
 }
 
 function AdminFinancialReport() {
-  const [stats, setStats] = useState<FinancialStats | null>(null);
-  const [dailyRevenue, setDailyRevenue] = useState<DailyRevenue[]>([]);
+  const [data, setData] = useState<FinancialData | null>(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState('30');
+  const [reportType, setReportType] = useState<'daily' | 'weekly' | 'monthly'>('daily');
 
   useEffect(() => {
     loadFinancialData();
-  }, [period]);
+  }, [period, reportType]);
 
   const loadFinancialData = async () => {
     setLoading(true);
     try {
-      // در اینجا باید API واقعی صدا زده بشه
-      // فعلاً داده‌های نمونه استفاده می‌کنیم
+      const token = localStorage.getItem('adminToken');
       
-      // شبیه‌سازی API call
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Calculate date range based on period
+      const endDate = new Date().toISOString().split('T')[0];
+      const startDate = new Date(Date.now() - parseInt(period) * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       
-      // داده‌های نمونه
-      const mockStats: FinancialStats = {
-        totalRevenue: 125000000,
-        monthlyRevenue: 45000000,
-        weeklyRevenue: 12500000,
-        todayRevenue: 2500000,
-        totalPayments: 156,
-        pendingPayments: 12,
-        approvedPayments: 138,
-        rejectedPayments: 6,
-        averagePayment: 801282,
-        growthRate: 15.5
-      };
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/admin/reports/financial?start_date=${startDate}&end_date=${endDate}&type=${reportType}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
 
-      // داده‌های روزانه نمونه
-      const mockDaily: DailyRevenue[] = [];
-      const days = parseInt(period);
-      for (let i = days - 1; i >= 0; i--) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        mockDaily.push({
-          date: date.toISOString().split('T')[0],
-          amount: Math.floor(Math.random() * 5000000) + 500000,
-          count: Math.floor(Math.random() * 10) + 1
-        });
+      const result = await response.json();
+      
+      if (result.success && result.data) {
+        setData(result.data);
+      } else {
+        toast.error(result.message || 'خطا در بارگذاری گزارش مالی');
       }
-
-      setStats(mockStats);
-      setDailyRevenue(mockDaily);
     } catch (error) {
       console.error('Error loading financial data:', error);
-      toast.error('خطا در بارگذاری گزارش مالی');
+      toast.error('خطا در ارتباط با سرور');
     } finally {
       setLoading(false);
     }
   };
 
-  const formatPrice = (price: number) => {
+  const formatPrice = (price: number | null | undefined) => {
+    if (price === null || price === undefined) return '0';
     return new Intl.NumberFormat('fa-IR').format(price);
   };
 
   const formatDate = (dateString: string) => {
+    // Handle different date formats
+    if (dateString.includes('-W')) {
+      // Weekly format: 2024-W45
+      return `هفته ${dateString.split('-W')[1]}`;
+    }
+    if (dateString.match(/^\d{4}-\d{2}$/)) {
+      // Monthly format: 2024-12
+      const [year, month] = dateString.split('-');
+      const monthNames = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'];
+      return `${monthNames[parseInt(month) - 1]} ${year}`;
+    }
+    // Daily format
     return new Date(dateString).toLocaleDateString('fa-IR', {
       month: 'short',
       day: 'numeric'
     });
   };
 
-  const exportReport = (format: 'csv' | 'pdf') => {
+  const exportReport = async (format: 'csv' | 'pdf') => {
     if (format === 'csv') {
-      // ساخت CSV
-      let csv = 'تاریخ,مبلغ,تعداد\n';
-      dailyRevenue.forEach(day => {
-        csv += `${day.date},${day.amount},${day.count}\n`;
-      });
-      
-      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = `financial-report-${new Date().toISOString().split('T')[0]}.csv`;
-      link.click();
-      toast.success('گزارش CSV دانلود شد');
+      try {
+        const token = localStorage.getItem('adminToken');
+        const endDate = new Date().toISOString().split('T')[0];
+        const startDate = new Date(Date.now() - parseInt(period) * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL}/admin/reports/export/transactions?start_date=${startDate}&end_date=${endDate}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          }
+        );
+
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `financial-report-${new Date().toISOString().split('T')[0]}.csv`;
+          link.click();
+          window.URL.revokeObjectURL(url);
+          toast.success('گزارش CSV دانلود شد');
+        } else {
+          const result = await response.json();
+          toast.error(result.message || 'خطا در دانلود گزارش');
+        }
+      } catch (error) {
+        console.error('Export error:', error);
+        toast.error('خطا در دانلود گزارش');
+      }
     } else {
       toast.info('گزارش PDF در حال آماده‌سازی...');
     }
   };
 
-  // محاسبه حداکثر مقدار برای نمودار
-  const maxAmount = Math.max(...dailyRevenue.map(d => d.amount), 1);
+  // Calculate stats from data
+  const totalRevenue = data?.summary?.total_revenue || 0;
+  const totalTransactions = data?.summary?.total_transactions || 0;
+  const avgTransaction = data?.summary?.avg_transaction || 0;
+  
+  // Group timeline by period for chart
+  const chartData = data?.timeline?.reduce((acc: any[], item) => {
+    const existing = acc.find(a => a.period === item.period);
+    if (existing) {
+      existing.amount += item.total_amount || 0;
+      existing.count += item.transaction_count || 0;
+    } else {
+      acc.push({
+        period: item.period,
+        amount: item.total_amount || 0,
+        count: item.transaction_count || 0
+      });
+    }
+    return acc;
+  }, []) || [];
+
+  // Sort by period
+  chartData.sort((a, b) => a.period.localeCompare(b.period));
+
+  // Calculate max for chart
+  const maxAmount = Math.max(...chartData.map(d => d.amount), 1);
 
   if (loading) {
     return (
@@ -154,6 +204,16 @@ function AdminFinancialReport() {
               <SelectItem value="90">۹۰ روز</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={reportType} onValueChange={(v: any) => setReportType(v)}>
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="daily">روزانه</SelectItem>
+              <SelectItem value="weekly">هفتگی</SelectItem>
+              <SelectItem value="monthly">ماهانه</SelectItem>
+            </SelectContent>
+          </Select>
           <Button variant="outline" size="sm" onClick={loadFinancialData}>
             <RefreshCw className="w-4 h-4" />
           </Button>
@@ -172,7 +232,7 @@ function AdminFinancialReport() {
               <div>
                 <p className="text-sm text-gray-500">درآمد کل</p>
                 <p className="text-2xl font-bold text-green-600">
-                  {formatPrice(stats?.totalRevenue || 0)}
+                  {formatPrice(totalRevenue)}
                 </p>
                 <p className="text-xs text-gray-400">تومان</p>
               </div>
@@ -185,11 +245,11 @@ function AdminFinancialReport() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">درآمد این ماه</p>
+                <p className="text-sm text-gray-500">تعداد تراکنش</p>
                 <p className="text-2xl font-bold text-blue-600">
-                  {formatPrice(stats?.monthlyRevenue || 0)}
+                  {formatPrice(totalTransactions)}
                 </p>
-                <p className="text-xs text-gray-400">تومان</p>
+                <p className="text-xs text-gray-400">تراکنش</p>
               </div>
               <Calendar className="w-10 h-10 text-blue-200" />
             </div>
@@ -200,9 +260,9 @@ function AdminFinancialReport() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">میانگین پرداخت</p>
+                <p className="text-sm text-gray-500">میانگین تراکنش</p>
                 <p className="text-2xl font-bold text-purple-600">
-                  {formatPrice(stats?.averagePayment || 0)}
+                  {formatPrice(Math.round(avgTransaction))}
                 </p>
                 <p className="text-xs text-gray-400">تومان</p>
               </div>
@@ -215,136 +275,138 @@ function AdminFinancialReport() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">رشد نسبت به ماه قبل</p>
-                <p className={`text-2xl font-bold ${(stats?.growthRate || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {stats?.growthRate || 0}%
+                <p className="text-sm text-gray-500">حداکثر تراکنش</p>
+                <p className="text-2xl font-bold text-orange-600">
+                  {formatPrice(data?.summary?.max_transaction || 0)}
                 </p>
-                <p className="text-xs text-gray-400">
-                  {(stats?.growthRate || 0) >= 0 ? 'افزایش' : 'کاهش'}
-                </p>
+                <p className="text-xs text-gray-400">تومان</p>
               </div>
-              {(stats?.growthRate || 0) >= 0 ? (
-                <TrendingUp className="w-10 h-10 text-green-200" />
-              ) : (
-                <TrendingDown className="w-10 h-10 text-red-200" />
-              )}
+              <TrendingUp className="w-10 h-10 text-orange-200" />
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* نمودار درآمد روزانه */}
+      {/* نمودار درآمد */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <BarChart3 className="w-5 h-5" />
-            نمودار درآمد روزانه
+            نمودار درآمد {reportType === 'daily' ? 'روزانه' : reportType === 'weekly' ? 'هفتگی' : 'ماهانه'}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-64 flex items-end gap-1">
-            {dailyRevenue.map((day, index) => (
-              <div
-                key={index}
-                className="flex-1 flex flex-col items-center group"
-              >
-                <div className="relative w-full">
-                  <div
-                    className="w-full bg-gradient-to-t from-blue-500 to-blue-400 rounded-t transition-all hover:from-blue-600 hover:to-blue-500"
-                    style={{
-                      height: `${(day.amount / maxAmount) * 200}px`,
-                      minHeight: '4px'
-                    }}
-                  />
-                  {/* Tooltip */}
-                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-10">
-                    <div className="bg-gray-800 text-white text-xs rounded px-2 py-1 whitespace-nowrap">
-                      <div>{formatPrice(day.amount)} تومان</div>
-                      <div>{day.count} پرداخت</div>
+          {chartData.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              <BarChart3 className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+              <p>داده‌ای برای نمایش وجود ندارد</p>
+            </div>
+          ) : (
+            <div className="h-64 flex items-end gap-1">
+              {chartData.map((day, index) => (
+                <div
+                  key={index}
+                  className="flex-1 flex flex-col items-center group"
+                >
+                  <div className="relative w-full">
+                    <div
+                      className="w-full bg-gradient-to-t from-blue-500 to-blue-400 rounded-t transition-all hover:from-blue-600 hover:to-blue-500"
+                      style={{
+                        height: `${(day.amount / maxAmount) * 200}px`,
+                        minHeight: '4px'
+                      }}
+                    />
+                    {/* Tooltip */}
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-10">
+                      <div className="bg-gray-800 text-white text-xs rounded px-2 py-1 whitespace-nowrap">
+                        <div>{formatPrice(day.amount)} تومان</div>
+                        <div>{day.count} تراکنش</div>
+                      </div>
                     </div>
                   </div>
+                  {index % Math.ceil(chartData.length / 10) === 0 && (
+                    <span className="text-xs text-gray-400 mt-1 transform -rotate-45">
+                      {formatDate(day.period)}
+                    </span>
+                  )}
                 </div>
-                {index % Math.ceil(dailyRevenue.length / 10) === 0 && (
-                  <span className="text-xs text-gray-400 mt-1 transform -rotate-45">
-                    {formatDate(day.date)}
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* آمار پرداخت‌ها */}
+      {/* آمار بر اساس نوع */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <PieChart className="w-5 h-5" />
-              وضعیت پرداخت‌ها
+              درآمد بر اساس نوع
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-green-500" />
-                  تایید شده
-                </span>
-                <span className="font-bold">{stats?.approvedPayments || 0}</span>
+            {data?.revenue_by_type && data.revenue_by_type.length > 0 ? (
+              <div className="space-y-4">
+                {data.revenue_by_type.map((item, index) => {
+                  const colors = ['bg-green-500', 'bg-blue-500', 'bg-purple-500', 'bg-orange-500', 'bg-red-500'];
+                  return (
+                    <div key={index} className="flex items-center justify-between">
+                      <span className="flex items-center gap-2">
+                        <div className={`w-3 h-3 rounded-full ${colors[index % colors.length]}`} />
+                        {item.type === 'featured' ? 'ویژه‌سازی' : 
+                         item.type === 'renewal' ? 'تمدید' : 
+                         item.type === 'listing' ? 'ثبت آگهی' : item.type}
+                      </span>
+                      <div className="text-left">
+                        <span className="font-bold">{formatPrice(item.total_amount)} تومان</span>
+                        <span className="text-sm text-gray-500 mr-2">({item.count} تراکنش)</span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-              <div className="flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-yellow-500" />
-                  در انتظار
-                </span>
-                <span className="font-bold">{stats?.pendingPayments || 0}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-red-500" />
-                  رد شده
-                </span>
-                <span className="font-bold">{stats?.rejectedPayments || 0}</span>
-              </div>
-              <hr />
-              <div className="flex items-center justify-between font-bold">
-                <span>مجموع</span>
-                <span>{stats?.totalPayments || 0}</span>
-              </div>
-            </div>
+            ) : (
+              <p className="text-center text-gray-500 py-4">داده‌ای موجود نیست</p>
+            )}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>خلاصه درآمد</CardTitle>
+            <CardTitle>خلاصه آماری</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-gray-600">امروز</span>
+                <span className="text-gray-600">کل تراکنش‌ها</span>
+                <span className="font-bold">
+                  {formatPrice(totalTransactions)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-600">کل درآمد</span>
                 <span className="font-bold text-green-600">
-                  {formatPrice(stats?.todayRevenue || 0)} تومان
+                  {formatPrice(totalRevenue)} تومان
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-gray-600">این هفته</span>
+                <span className="text-gray-600">میانگین هر تراکنش</span>
                 <span className="font-bold text-blue-600">
-                  {formatPrice(stats?.weeklyRevenue || 0)} تومان
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">این ماه</span>
-                <span className="font-bold text-purple-600">
-                  {formatPrice(stats?.monthlyRevenue || 0)} تومان
+                  {formatPrice(Math.round(avgTransaction))} تومان
                 </span>
               </div>
               <hr />
               <div className="flex items-center justify-between">
-                <span className="font-bold">کل درآمد</span>
-                <span className="font-bold text-xl text-green-600">
-                  {formatPrice(stats?.totalRevenue || 0)} تومان
+                <span className="text-gray-600">کمترین تراکنش</span>
+                <span className="font-bold">
+                  {formatPrice(data?.summary?.min_transaction || 0)} تومان
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-600">بیشترین تراکنش</span>
+                <span className="font-bold">
+                  {formatPrice(data?.summary?.max_transaction || 0)} تومان
                 </span>
               </div>
             </div>
