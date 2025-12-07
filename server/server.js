@@ -229,6 +229,11 @@ app.use('/api/listing-stats', require('./routes/listingStats'));
 app.use('/api/renewals', require('./routes/renewals'));
 app.use('/api/admin/renewals', require('./routes/adminRenewals'));
 
+// New Admin Dashboard Pro, Notification Center, and Advanced Search routes
+app.use('/api/admin/dashboard-pro', require('./routes/adminDashboardPro'));
+app.use('/api/admin/notification-center', require('./routes/adminNotificationCenter'));
+app.use('/api/admin/listings', require('./routes/adminListingsSearch'));
+
 // Static files for uploaded images
 app.use('/uploads', express.static('uploads'));
 
